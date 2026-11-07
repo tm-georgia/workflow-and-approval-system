@@ -87,4 +87,44 @@ describe("authentication and Requester requests", () => {
 
     await reviewer.get("/api/requests/mine").expect(403);
   });
+
+  it("TEST-AUTH-ME-01: returns the signed-in user's current identity", async () => {
+  const requester = request.agent(app);
+
+  const login = await requester
+    .post("/api/auth/login")
+    .send({
+      email: "requester@example.test",
+      password: "RequesterDemo334!",
+    })
+       .expect(200);
+
+  expect(login.body).toMatchObject({
+    id: expect.any(Number),
+    email: "requester@example.test",
+    role: "REQUESTER",
+  });
+
+  const me = await requester.get("/api/auth/me").expect(200);
+
+  expect(me.body).toMatchObject({
+    id: login.body.id,
+    email: "requester@example.test",
+    role: "REQUESTER",
+  });
+});
+
+it("TEST-AUTH-INVALID-01: invalid login does not create a session", async () => {
+  const requester = request.agent(app);
+
+  await requester
+    .post("/api/auth/login")
+    .send({
+      email: "requester@example.test",
+      password: "incorrect-test-password",
+    })
+    .expect(401);
+
+  await requester.get("/api/auth/me").expect(401);
+});
 });
