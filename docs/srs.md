@@ -1,48 +1,90 @@
 # Part A — Software Requirements Specification
 
-## Problem
+## 1. Stakeholder problem and context
 
-Requesters need a clear way to submit requests and check what happened to them. Reviewers need a place to view requests and approve or reject them. The system records each request’s status so the result can be checked later.
+A department needs controlled approval of internal purchase requests. Requesters submit a request describing the purchase and check its status. An authorized Reviewer reviews requests and records the outcome. The application replaces informal approval messages with an authenticated, persistent workflow.
 
-## Users
+**Context decision used in this draft:** internal departmental purchase requests. The Sprint 1 form uses a title and description; the title identifies the purchase and the description contains its details and justification. If the team has selected a different Theme 5 context—funding, travel, reimbursement, or another similar request—replace this context consistently before submission.
 
-- **Requester:** signs in, submits a request, and views their own requests and statuses.
-- **Reviewer:** signs in, views requests waiting for review, and approves or rejects them.
+## 2. Actors and responsibilities
 
-## Scope
+- **Requester:** Signs in, submits requests, and views only their own requests and statuses. In Sprint 2, a Requester may revise and resubmit a request returned for changes.
+- **Reviewer:** Signs in, views requests they are authorized to review, and records review outcomes.
+- **Application operator:** Runs and configures the application and database. Advanced in-app account administration is outside this deliverable.
 
-The planned product supports sign-in, request submission, review decisions, and status tracking. Sprint 1 will deliver a small working version of that workflow using a website, backend, and database.
+## 3. Product scope
 
-## Exclusions for the initial version
+The whole product provides authentication, request submission, authorized review, decision/state history, return/resubmission, additional approval stages, filtering, and decision summaries/reporting.
 
-Self-registration, password recovery, and advanced account administration are not included in this checkpoint. Confirm with the team whether other features are out of scope.
+- **Sprint 1:** Sign-in/out and current-user identity; Requester submission and retrieval; Reviewer review and approve/reject; saved review outcome; server-side access checks; prevention of self-approval and invalid transitions.
+- **Sprint 2:** Return for changes and resubmission; additional approval stages.
+- **Sprint 3:** Filtering and decision summaries/reporting, integration, and product hardening.
 
-## Functional requirements
+## 4. Exclusions
 
-- **FR-01 — Sign in and out:** A user can sign in, and the system can identify the signed-in user. The user can sign out.
-- **FR-02 — Submit request:** A signed-in Requester can submit a request with the required information.
-- **FR-03 — View own requests:** A Requester can view their own submitted requests and their current statuses.
-- **FR-04 — View requests for review:** A signed-in Reviewer can view requests waiting for a decision.
-- **FR-05 — Decide request:** A Reviewer can approve or reject a request that is waiting for review.
-- **FR-06 — Save decision:** The system saves a decision so it remains visible when the request is viewed again.
+- Self-registration, password recovery, email verification, and advanced account administration.
+- Real payment processing, external messaging, and external APIs.
+- Docker, completed CI/CD, and GCP deployment for Deliverable 1; those are assessed in Lab 5.
+- A separate cloud staging environment.
 
-## Business rules
+## 5. Functional requirements
 
-- **BR-01 — Initial status:** A newly submitted request starts with the status `Pending`.
-- **BR-02 — Request ownership:** A Requester may view only their own requests.
-- **BR-03 — Reviewer permission:** Only a Reviewer may approve or reject a request.
-- **BR-04 — Pending-only decision:** A request may be decided only while its status is `Pending`.
+### Sprint 1
 
-## Non-functional requirements
+- **FR-01 — Authentication and identity:** A user can sign in with valid credentials, sign out, and retrieve the identity and role of the signed-in account.
+- **FR-02 — Submit request:** An authenticated Requester can submit a request with a non-empty title and description. The system obtains the Requester identity from the session and saves the request in `PENDING` status.
+- **FR-03 — View own requests:** An authenticated Requester can retrieve their own requests and statuses; another Requester's private requests are not returned.
+- **FR-04 — View authorized review queue:** An authenticated, designated Reviewer can retrieve pending requests in the department's review scope. Sprint 1 uses one designated seeded Reviewer authorized for all requests in that scope; there is no user-selectable assignment screen.
+- **FR-05 — Approve or reject:** The designated Reviewer can approve or reject a request that is awaiting review. The API records the outcome, acting Reviewer, decision time, and reason.
+- **FR-06 — Retrieve review outcome:** The saved outcome remains available when the request is retrieved again. In Sprint 1 the request record stores its one final decision, including status, Reviewer, decision time, and reason. Sprint 2 adds multi-event history for returns/resubmissions and additional stages.
 
-- **NFR-01 — Protect signed-out users:** A request to a protected feature without signing in is rejected and does not return private request information. Verify with an automated backend test.
-- **NFR-02 — Protect role and ownership access:** A user who is not allowed to access or decide a request is refused by the backend. Verify with automated backend tests.
-- **NFR-03 — Persist saved requests:** After a successful submission or decision, the saved information remains available when retrieved again from the database. Verify with an integration test.
+### Sprint 2
 
-## Assumptions and decisions to confirm
+- **FR-07 — Return for changes:** An authorized Reviewer can return a request to its Requester with a reason; the reason and state are visible to the Requester.
+- **FR-08 — Revise and resubmit:** The Requester can revise and resubmit their own returned request. Earlier return and resubmission events remain in history.
+- **FR-09 — Additional approval stages:** A request can pass through the agreed ordered approval stages. The system records each stage's outcome and identifies the final outcome.
 
-- The first request form will use a title and description.
-- The first workflow has one Reviewer decision: `Approved` or `Rejected`.
-- The Requester’s identity comes from the signed-in account, not an ID selected in the website.
-- Confirm with the team whether Requesters may edit or cancel a Pending request.
-- Confirm with the team whether this simple workflow is the complete product scope or whether more features are planned for later sprints.
+### Sprint 3
+
+- **FR-10 — Filter requests:** Users can filter only the requests they are authorized to see, using agreed status and workflow fields.
+- **FR-11 — Decision summaries and reporting:** Authorized users can view decision summaries for records within their permitted scope.
+
+## 6. Business rules
+
+- **BR-01 — Initial state:** A newly submitted request starts in `PENDING`.
+- **BR-02 — Requester ownership:** A Requester can retrieve only their own requests. The API derives ownership from the authenticated session, not a client-supplied ID.
+- **BR-03 — Reviewer authorization:** In Sprint 1, only the designated Reviewer account may access the department's review queue or decide its requests. Other Reviewer accounts are forbidden unless explicitly authorized.
+- **BR-04 — No self-approval:** A request's Requester cannot approve or reject that same request, even if it is incorrectly associated with the designated Reviewer.
+- **BR-05 — Pending-only decision:** Approve/reject is allowed only while the request is `PENDING`. A second decision attempt is rejected and cannot overwrite the first outcome.
+- **BR-06 — Recorded decision:** A successful decision stores the final status, the Reviewer who acted, decision time, and reason on the request. A rejected transition makes no database change.
+- **BR-07 — Return reason and ownership (Sprint 2):** A return includes a reason; only the request owner may revise/resubmit a request in the returned state.
+- **BR-08 — Ordered approvals (Sprint 2):** A later stage cannot decide before required earlier stages are complete. The exact stage sequence must be agreed before implementation.
+- **BR-09 — Report authorization (Sprint 3):** A summary includes only records the requesting user is allowed to access.
+
+## 7. Non-functional requirements
+
+- **NFR-01 — Unauthenticated access:** A protected API request without a valid session returns HTTP `401` and no protected record data. Verify with API tests.
+- **NFR-02 — Role, ownership, assignment, and self-approval:** An unauthorized attempt returns HTTP `403` and does not change request state. Verify with tests for another Requester's record, an unrelated Reviewer, a Requester invoking review operations, and self-approval.
+- **NFR-03 — Persistence:** After a request is submitted or decided, the saved result can be read back from PostgreSQL. Verify by writing and retrieving through API/database integration tests.
+- **NFR-04 — Credential and secret protection:** Passwords are stored as hashes; real credentials and secrets are absent from Git, client code, and API responses. Verify through tests and configuration/repository inspection.
+
+## 8. Assumptions and decisions
+
+| ID | Decision / assumption | Resolution |
+|---|---|---|
+| AD-01 | Theme context | This draft uses internal purchase approval. Change only if the team selected a different context. |
+| AD-02 | Sprint 1 request fields | Keep the implemented title and description fields; use them for purchase name/details and justification. No structured amount field is required by this draft. |
+| AD-03 | Reviewer assignment | One designated seeded Reviewer is authorized for all requests in the department's Sprint 1 scope. Assignment is by scope/policy; there is no per-request selection UI. F-03 must enforce this Reviewer identity server-side. |
+| AD-04 | Self-approval | Always prohibited; compare the Requester identity with the acting Reviewer identity in the backend. |
+| AD-05 | Sprint 1 decision | One final approve/reject decision. Persist status, Reviewer ID, decision time, and reason. F-03 may add the reason field through a migration; keep F-01/F-02 behavior unchanged. |
+| AD-06 | Editing and return | No editing of a pending request in Sprint 1. Sprint 2 return-for-changes enables the owner to revise/resubmit while preserving events. |
+| AD-07 | Multi-stage workflow | Deferred to Sprint 2; exact ordered stages are specified before that feature is implemented. |
+| AD-08 | Authentication | Current implementation uses bcrypt password hashes and an HTTP-only JWT cookie with one-hour expiry; see `docs/system-sds.md`. |
+
+## 9. Verification allocation
+
+Sprint 1 verification is listed in `docs/traceability.md` and detailed in the F-01, F-02, and F-03 contracts. Sprint 2 and Sprint 3 features are allocated in the baseline now; their detailed acceptance criteria and executable tests are written before implementation in those sprints.
+
+## 10. Known implementation gaps
+
+F-01 and F-02 are implemented. F-03 still needs the Reviewer queue/decision endpoints and tests for the designated Reviewer, self-approval, Requester review attempts, unrelated Reviewer access, and repeated decisions. The current Request schema has no decision-reason field; add it in the F-03 migration and update the data-model section of the System-Level SDS. The existing request row can record one final decision; multi-event history is planned for Sprint 2. Do not describe incomplete F-03 or later-sprint behavior as implemented.
