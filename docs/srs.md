@@ -32,6 +32,8 @@ Self-registration, password recovery, and advanced account administration are no
 - **BR-02 — Request ownership:** A Requester may view only their own requests.
 - **BR-03 — Reviewer permission:** Only a Reviewer may approve or reject a request.
 - **BR-04 — Pending-only decision:** A request may be decided only while its status is `Pending`.
+- **BR-05 — Assigned Reviewer:** The server assigns each new request to the designated seeded Reviewer. Only that assigned Reviewer may list or decide it. Unassigned legacy requests are not available for review. Submission fails without saving if the designated account is missing or does not have the Reviewer role.
+- **BR-06 — No self-approval:** A Reviewer may not list or decide a request they own, even if their account role changed after submission.
 
 ## Non-functional requirements
 
@@ -46,3 +48,11 @@ Self-registration, password recovery, and advanced account administration are no
 - The Requester’s identity comes from the signed-in account, not an ID selected in the website.
 - Confirm with the team whether Requesters may edit or cancel a Pending request.
 - Confirm with the team whether this simple workflow is the complete product scope or whether more features are planned for later sprints.
+
+## Sprint 1 decisions resolved on 12 November 2026
+
+- The user approved one designated seeded Reviewer for all new requests, assigned by the server. `DESIGNATED_REVIEWER_EMAIL` optionally selects that account; the demo default is `reviewer@example.test`. Assignment is persisted separately from the identity of the Reviewer who eventually decides the request. No existing request is backfilled or reassigned automatically.
+- FR-04/FR-05 are constrained by BR-05/BR-06 as well as role permissions. BR-04 is enforced in the database update so concurrent or repeated decisions cannot overwrite the first saved result.
+- FR-06's minimum Sprint 1 decision/history record is the final status, Reviewer identity, and decision timestamp on the Request. Save them together and return them on later retrieval by the owning Requester. Sprint 1 allows one terminal decision; it introduces no event log, decision reasons, return, resubmission, or additional stages.
+- Extended reasons/history, return/resubmission, filtering, and reporting remain proposed F-04-F-07 in the inventory. This local Sprint 1 clarification does not approve that later scope or resolve its new FR/BR definitions.
+- The Requester form's 120-character client title limit is still not an approved server-side product rule; that policy needs teammate agreement. Existing requirement IDs are preserved; BR-05/BR-06 add the approved assignment and teacher-required self-approval rules.

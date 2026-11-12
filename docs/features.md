@@ -5,10 +5,12 @@
 | Feature ID | Feature | Related requirements | Sprint | Dependency |
 |---|---|---|---|---|
 | F-01 | Sign in, sign out, and identify the current user | FR-01, NFR-01, NFR-02 | Sprint 1 | None |
-| F-02 | Submit a request and let the Requester view its status | FR-02, FR-03, BR-01, BR-02, NFR-02, NFR-03 | Sprint 1 | F-01 |
-| F-03 | Let a Reviewer view and decide pending requests | FR-04, FR-05, FR-06, BR-03, BR-04, NFR-02, NFR-03 | Sprint 1 | F-01, F-02 |
+| F-02 | Submit a request and let the Requester view its status | FR-02, FR-03, BR-01, BR-02, BR-05 (assignment integration), NFR-01, NFR-02, NFR-03 | Sprint 1 | F-01; F-03 assignment schema/configuration prerequisite |
+| F-03 | Let a Reviewer view and decide pending requests | FR-04, FR-05, FR-06, BR-03, BR-04, BR-05, BR-06, NFR-01, NFR-02, NFR-03 | Sprint 1 | F-01, F-02 |
 
 These remain the confirmed Sprint 1 features. The NFR-02 links identify authentication/role middleware in F-01 and ownership enforcement in F-02 as shared responsibilities; they do not change the requirement or establish passing verification.
+
+12 November 2026 local update: the user approved one server-designated seeded Reviewer for new requests; BR-05/BR-06 record assignment and self-approval prevention without renumbering existing IDs. F-03 is now implemented and locally tested; see [the verification report](sprints/sprint-1/verification.md) and contracts for actual results and pending review/integration. The F-02 assignment prerequisite is data/configuration integration, not a dependency on completing F-03 decision handling.
 
 ## Proposed later-sprint scope - pending team approval
 
@@ -23,6 +25,6 @@ The following IDs are proposed identifiers for review, not approved baseline add
 
 Implement F-04 before the history-dependent F-05 work. Preserve the minimum decision/history entry required in F-03 for Sprint 1; proposing richer F-04 history later does not defer that Sprint 1 obligation. Sprint 3 must include an implemented and tested F-06 or F-07 domain workflow/rule by 29 November, with all agreed scope complete by 13 December.
 
-Before approval, agree whether reasons are mandatory for approval, rejection, and return; which history events and details each role may view; return/resubmission and editing rules; filter fields; and report calculations/access. Reviewer assignment/authorization and self-approval prevention remain outstanding Sprint 1 decisions. Multi-stage approval is not included in this proposal; confirm whether the chosen context requires it or instructor/TA agreement for a scope variation.
+Before approving later scope, agree whether reasons are mandatory for approval, rejection, and return; which extended history events/details each role may view; return/resubmission and editing rules; filter fields; and report calculations/access. Sprint 1 assignment, self-approval prevention, and its single saved decision/history entry are now resolved in F-03; they are not postponed to F-04. Multi-stage approval is not included in this proposal; confirm whether the chosen context requires it or instructor/TA agreement for a scope variation.
 
 After approval, record the decision and update the SRS, System-Level SDS, feature contracts, and [traceability](traceability.md) before implementation. Finalize [Part D](sprints/plan.md) only after this baseline reconciliation. No new AC/test IDs, endpoint paths, or schema decisions are approved by this inventory.

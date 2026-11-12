@@ -26,17 +26,22 @@ model User {
   createdAt         DateTime  @default(now())
   submittedRequests Request[] @relation("Requester")
   reviewedRequests  Request[] @relation("Reviewer")
+  assignedRequests  Request[] @relation("AssignedReviewer")
 }
 
 model Request {
-  id          Int           @id @default(autoincrement())
-  title       String
-  description String
-  status      RequestStatus @default(PENDING)
-  requesterId Int
-  requester   User          @relation("Requester", fields: [requesterId], references: [id], onDelete: Restrict)
-  reviewerId  Int?
-  reviewer    User?         @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
-  createdAt   DateTime      @default(now())
-  decidedAt   DateTime?
+  id                 Int           @id @default(autoincrement())
+  title              String
+  description        String
+  status             RequestStatus @default(PENDING)
+  requesterId        Int
+  requester          User          @relation("Requester", fields: [requesterId], references: [id], onDelete: Restrict)
+  assignedReviewerId Int?
+  assignedReviewer   User?         @relation("AssignedReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
+  reviewerId         Int?
+  reviewer           User?         @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  createdAt          DateTime      @default(now())
+  decidedAt          DateTime?
+
+  @@index([assignedReviewerId, status, createdAt, id])
 }

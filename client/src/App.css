@@ -203,6 +203,25 @@ button.secondary {
   background: #ffe8e8;
 }
 
+.success {
+  padding: 12px;
+  color: #17663d;
+  border-radius: 9px;
+  background: #d9f3e4;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 @media (max-width: 720px) {
   .columns {
     grid-template-columns: 1fr;

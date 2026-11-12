@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import "./App.css";
+import ReviewerWorkspace from "./ReviewerWorkspace";
 
 type User = {
   id: number;
@@ -13,6 +14,8 @@ type RequestItem = {
   description: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
+  reviewerId?: number | null;
+  decidedAt?: string | null;
 };
 
 async function responseError(response: Response): Promise<string> {
@@ -29,6 +32,7 @@ function App() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
 
   async function loadRequests() {
@@ -71,6 +75,7 @@ function App() {
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSuccess("");
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -105,11 +110,13 @@ function App() {
     setRequests([]);
     setPassword("");
     setError("");
+    setSuccess("");
   }
 
   async function handleSubmitRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSuccess("");
 
     try {
       const response = await fetch("/api/requests", {
@@ -125,6 +132,7 @@ function App() {
 
       setTitle("");
       setDescription("");
+      setSuccess("Request saved as Pending.");
       await loadRequests();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not submit request.");
@@ -197,6 +205,7 @@ function App() {
       </header>
 
       {error && <p className="error">{error}</p>}
+      {success && <p className="success" role="status">{success}</p>}
 
       {user.role === "REQUESTER" ? (
         <div className="columns">
@@ -245,6 +254,9 @@ function App() {
                     </div>
                     <p>{item.description}</p>
                     <small>{new Date(item.createdAt).toLocaleString()}</small>
+                    {item.decidedAt && item.reviewerId != null && (
+                      <p><small>Decision by Reviewer #{item.reviewerId} on {new Date(item.decidedAt).toLocaleString()}</small></p>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -252,11 +264,7 @@ function App() {
           </section>
         </div>
       ) : (
-        <section className="card">
-          <p className="muted">
-            The Reviewer screen will appear here when the Reviewer feature is integrated.
-          </p>
-        </section>
+        <ReviewerWorkspace key={user.id} />
       )}
     </main>
   );
