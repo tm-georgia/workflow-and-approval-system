@@ -98,21 +98,25 @@ The API enforces authentication and role restrictions on the server. An unauthen
 | `TEST-02: rejects an incorrect password` | AC-02 | API test — `server/test/requests.test.ts` | Submit the seeded Requester email with an incorrect password. | HTTP `401`. | Implemented; the test does not check session state afterward. |
 | `TEST-03: Requester saves and retrieves their own Pending request` | AC-01, AC-04 | API/database integration test — `server/test/requests.test.ts` | Sign in, submit and retrieve a request, sign out, then call `/api/auth/me`. | The request is saved for the signed-in user; after sign-out, `/api/auth/me` returns HTTP `401`. | Implemented |
 | `TEST-04: refuses to let a Reviewer use the Requester-only list` | AC-06 | API test — `server/test/requests.test.ts` | Sign in as the seeded Reviewer and call `GET /api/requests/mine`. | HTTP `403`. | Implemented |
-| `TEST-AUTH-ME-01: returns the signed-in user's current identity` | AC-01, AC-03 | API test — `server/test/requests.test.ts` | Sign in as the seeded Requester, check the login response, then call `GET /api/auth/me`. | Login and `/api/auth/me` return the Requester’s ID, email, and role. The session agent retains the cookie. | Implemented; rerun after the latest assertion change. |
+| `TEST-AUTH-ME-01: returns the signed-in user's current identity` | AC-01, AC-03 | API test — `server/test/requests.test.ts` | Sign in as the seeded Requester, check the login response, then call `GET /api/auth/me`. | Login and `/api/auth/me` return the Requester’s ID, email, and role. The session agent retains the cookie. | Executed successfully on 12 November 2026; see verification report. |
 | `TEST-AUTH-INVALID-01: invalid login does not create a session` | AC-02 | API test — `server/test/requests.test.ts` | Attempt login with the seeded Requester email and an incorrect password, then call `/api/auth/me` using the same session agent. | Login returns HTTP `401`; `/api/auth/me` also returns HTTP `401`. | Implemented |
 | `TEST-UI-01: signs in, submits a request, and shows its Pending status` | AC-01 | UI test — `client/src/App.test.tsx` | Sign in and submit a request through the UI. The test simulates API responses. | The request and `PENDING` status appear in the UI. | Implemented; UI evidence only, not a real API/database integration test. |
 
 ### Test execution record
 
-The latest reported server test run had **6 tests passing before the latest assertion was added to `TEST-AUTH-ME-01`**. Rerun the tests after that change and update this record with the actual result.
+Historical record: six tests were previously reported passing before the latest identity assertion. On 12 November 2026, all six existing tests, including that assertion, passed in the initial 45-test backend suite. After the final review corrections, they passed again in the complete **55-test** backend suite on isolated PostgreSQL. The original Requester UI journey also passed again in the **19-test** frontend suite. F-01 implementation and existing tests were not rewritten.
 
 ```text
 Command: npm test
 Directory: server
-Latest result after the most recent change: pending rerun
+Current runner: creates an isolated PostgreSQL test cluster; no developer database is used.
+Final result after review corrections: 55 passed, 0 failed, 0 skipped; includes all 6 original tests.
+Final runtime: Node 24.15.0; 12 November 2026.
 ```
 
 Do not mark a test result as passing until it has been rerun after the latest code change.
+
+See [verification.md](verification.md) for the exact executed Node/runner commands, test names, working-tree snapshot, logs, builds, and remaining review/release gates. F-01 introduces no standalone domain BR; its authentication/role middleware supports the business rules in F-02/F-03. Additional invalid/expired/unknown-user session checks for the new Reviewer paths are in `server/test/reviewer.test.ts` (`TEST-F03-SESSION`).
 
 ## Definition of Done
 
@@ -123,7 +127,10 @@ Do not mark a test result as passing until it has been rerun after the latest co
 - The README explains safe local setup and the seed procedure without exposing real secrets.
 - The contract and related implementation changes are reviewed by the teammate and merged through the team’s branch workflow.
 - Any incomplete checks or failures are disclosed.
+- Apply the shared [Product Definition of Done](product-dod.md).
 
 ## History
 
 The authentication implementation and tests existed before this contract was written. This contract documents the behavior retrospectively; it does not claim to have been written or approved before implementation.
+
+12 November 2026 local addendum: reviewed existing F-01 without changing its implementation, AC IDs, or existing tests; updated only the stale execution record and shared DoD/verification references. Teammate review and versioned integration remain pending.

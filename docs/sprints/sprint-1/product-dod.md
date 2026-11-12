@@ -1,0 +1,15 @@
+# Sprint 1 Product Definition of Done
+
+Applies to the integrated F-01/F-02/F-03 increment. Prepared locally on 12 November 2026 against Deliverable 1 section 3.5 and the Theme 5 Sprint 1 example. A feature's implementation or green tests alone do not establish product acceptance.
+
+| Gate | Required evidence | Current local position |
+|---|---|---|
+| Contracts and baseline | Versioned feature design, linked FR/BR/NFR, UI/API/data/error/permission definitions, stable AC, detailed STS, and justified revision history. | Local contracts completed/reconciled. F-01/F-02 documentation is partly retrospective and remains labeled as such. F-03 design resolution and red/green sequence are recorded locally. Git submission/versioned review is pending. |
+| Complete domain journey | Real sign-in -> assigned request -> authorized approve/reject -> owner retrieval of saved status, deciding identity, and timestamp. | Backend integration and built-server smoke checks are recorded in [verification.md](verification.md). UI tests are explicitly identified as mocked API checks. |
+| Business rules and access | Server role/ownership/assignment checks; no self-approval; pending-only decisions; no duplicate/concurrent overwrite; refusal leaves data unchanged. | Actual unit/API/PostgreSQL and UI test results are recorded in the report. A hidden control is never treated as authorization. |
+| Quality and regression | Meaningful planned checks executed; TypeScript and production builds pass; F-01/F-02 regressions retained; failed/skipped checks disclosed. | Commands, counts, execution context, and results are in the report. Do not reuse older results after implementation changes without rerunning affected checks. |
+| Persistence and setup | Additive repeatable migrations, safe seed/configuration, reproducible install/run/build/test instructions, saved data retrieved after application restart. | README, migration, isolated runner, and smoke evidence provided. Developer database migration/backfill is not executed by this task. |
+| Review and integration | Teammate review of behavior/contracts/tests; bounded Issue/branch/PR chain; staging integration and acceptance; reviewed main release with immutable tag/commit. | **Pending.** Git submission, Issues, remote changes, commits, PRs, and merges are explicitly outside this local task until the user's approval. |
+| Honest handoff | Both students' contributions, AI assistance, known limitations, debt/defects, configuration handling, tested version, and unresolved decisions disclosed. | Local report supplies technical evidence/limits. The team must supply its real names, contribution/review evidence, and submission references; no participation or approval is fabricated. |
+
+**Acceptance rule:** mark the product Done only when every required gate is supported by actual evidence. Local engineering can be ready for teammate review while formal Part E submission readiness remains pending review, recorded history, and integration. Docker/CI/CD/GCP completion belongs to Lab 5, not Deliverable 1's local acceptance.
