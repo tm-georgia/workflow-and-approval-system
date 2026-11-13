@@ -27,11 +27,21 @@ requestRouter.post(
     try {
       const user = (request as AuthRequest).currentUser!;
 
+      const assignedReviewer = await prisma.user.findUnique({
+        where: { email: process.env.DESIGNATED_REVIEWER_EMAIL ?? "reviewer@example.test" },
+        select: { id: true, role: true },
+      });
+      if (!assignedReviewer || assignedReviewer.role !== "REVIEWER") {
+        response.status(503).json({ error: "Request submission is unavailable until a Reviewer is configured." });
+        return;
+      }
+
       const savedRequest = await prisma.request.create({
         data: {
           title: title.trim(),
           description: description.trim(),
           requesterId: user.id,
+          assignedReviewerId: assignedReviewer.id,
         },
       });
 
