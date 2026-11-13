@@ -133,4 +133,4 @@ See [verification.md](verification.md) for the exact executed Node/runner comman
 
 The authentication implementation and tests existed before this contract was written. This contract documents the behavior retrospectively; it does not claim to have been written or approved before implementation.
 
-12 November 2026 local addendum: reviewed existing F-01 without changing its implementation, AC IDs, or existing tests; updated only the stale execution record and shared DoD/verification references. Teammate review and versioned integration remain pending.
+12 November 2026 local addendum: reviewed existing F-01 without changing its implementation, AC IDs, or existing tests; updated only the stale execution record and shared DoD/verification references. F-01 was integrated into sprint-staging through PR #6; final release verification on main remains pending.

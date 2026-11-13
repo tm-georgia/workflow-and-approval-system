@@ -1,30 +1,28 @@
 # Part B — Feature Inventory
 
-## Confirmed Sprint 1 scope
+This inventory covers the selected Theme 5 product baseline across all three sprints. Sprint 1 implementation is identified separately from later planned work. Later features receive requirement and sprint allocation now; their detailed contracts and executable tests are prepared before implementation in their sprint.
 
-| Feature ID | Feature | Related requirements | Sprint | Dependency |
+| ID | Feature | Requirements | Sprint | Dependencies and completion outcome |
 |---|---|---|---|---|
-| F-01 | Sign in, sign out, and identify the current user | FR-01, NFR-01, NFR-02 | Sprint 1 | None |
-| F-02 | Submit a request and let the Requester view its status | FR-02, FR-03, BR-01, BR-02, BR-05 (assignment integration), NFR-01, NFR-02, NFR-03 | Sprint 1 | F-01; F-03 assignment schema/configuration prerequisite |
-| F-03 | Let a Reviewer view and decide pending requests | FR-04, FR-05, FR-06, BR-03, BR-04, BR-05, BR-06, NFR-01, NFR-02, NFR-03 | Sprint 1 | F-01, F-02 |
+| F-01 | Sign in/out and retrieve current identity | FR-01, NFR-01, NFR-02, NFR-04 | Sprint 1 | Seeded accounts and database. User session identity is enforced by the API. |
+| F-02 | Submit a request and view its own status | FR-02, FR-03, BR-01, BR-02, BR-05, NFR-01–03 | Sprint 1 | F-01. Save a Pending request under the signed-in Requester and retrieve only that Requester's records. |
+| F-03 | Review assigned pending requests and approve/reject | FR-04–06, BR-03–06, NFR-01–03 | Sprint 1 | F-01, F-02, PostgreSQL. Save status, deciding Reviewer, and decision time; reject unauthorized/self/repeated decisions. |
+| F-04 | Save decision reasons and ordered review history | FR-07, BR-07, NFR-01–04 | Sprint 2 | F-01–03. Add persisted reason/history events and authorized retrieval. |
+| F-05 | Return a request and allow owner correction/resubmission | FR-08, BR-08, NFR-01–03 | Sprint 2 | F-04 history. Preserve earlier events and test valid/invalid state transitions. |
+| F-06 | Filter authorized request lists | FR-09, NFR-01–03 | Sprint 3 | F-01–05. Filters must not widen the user's record access. |
+| F-07 | Provide decision summaries and reports | FR-10, BR-09, NFR-01–04 | Sprint 3 | F-04–06. Summaries use persisted decisions and respect authorization. |
 
-These remain the confirmed Sprint 1 features. The NFR-02 links identify authentication/role middleware in F-01 and ownership enforcement in F-02 as shared responsibilities; they do not change the requirement or establish passing verification.
+## Cross-cutting responsibilities
 
-12 November 2026 local update: the user approved one server-designated seeded Reviewer for new requests; BR-05/BR-06 record assignment and self-approval prevention without renumbering existing IDs. F-03 is now implemented and locally tested; see [the verification report](sprints/sprint-1/verification.md) and contracts for actual results and pending review/integration. The F-02 assignment prerequisite is data/configuration integration, not a dependency on completing F-03 decision handling.
+| Responsibility | Requirements | Sprint and verification |
+|---|---|---|
+| Authentication and secret handling | FR-01, NFR-01, NFR-04 | Sprint 1 F-01; valid/invalid login, logout, current identity, protected access, and configuration inspection. |
+| Backend role, assignment, ownership, and self-approval enforcement | BR-02–06, NFR-02 | Sprint 1 F-01–03; API/database negative tests. Extend tests for F-05/F-06/F-07 later. |
+| Persistent requests and decisions | FR-02, FR-06, NFR-03 | Sprint 1 F-02/F-03; write/read and restart checks. Extend to event history in Sprint 2. |
+| Reproducible setup and synthetic accounts | NFR-03/NFR-04 | Sprint 1 README, migrations, seed procedure, and local build/test evidence. |
 
-## Proposed later-sprint scope - pending team approval
+## Coverage and scope decisions
 
-The following IDs are proposed identifiers for review, not approved baseline additions or claims of implementation. The proposed split follows the team's suggested feature set. No approval is recorded yet. Existing FR/BR IDs remain unchanged; the SRS does not yet define the new behavior fully.
+All Theme 5 capabilities are allocated: reasons/history and return/resubmission are Sprint 2; filtering and decision summaries are Sprint 3. This project uses one approval stage and one server-designated Reviewer for the selected department purchase context. These decisions specialize the theme; they do not claim that later features are already implemented.
 
-| Proposed feature ID | Proposed feature and completion outcome | Requirement links and gaps | Proposed sprint | Dependency |
-|---|---|---|---|---|
-| F-04 | Decision reasons and history: persist the reason and an ordered record of review actions, and let authorized users retrieve them. | Extends FR-06; applies NFR-01, NFR-02, NFR-03. New FR/BR definitions are needed for reasons, recorded events, history visibility, and preservation. | Sprint 2 | F-01, F-02, F-03 |
-| F-05 | Return and resubmit a request: an authorized Reviewer returns a pending request with a reason; its Requester corrects and resubmits it for review while earlier decisions/history remain available. | Extends the workflow addressed by FR-02-FR-06; applies BR-02 and NFR-01-NFR-03. New FR/BR definitions are needed for return/resubmission, allowed edits, and transitions. | Sprint 2 | F-01, F-02, F-03, F-04 |
-| F-06 | Request filtering: users narrow their authorized request list using agreed filters without widening their record access. | Relates to FR-03/FR-04 and NFR-01/NFR-02. New FR/BR definitions are needed for filter fields, combinations, and behavior. | Sprint 3 | F-01, F-02, F-03, F-05 for filtering any newly introduced workflow states |
-| F-07 | Decision reporting: show agreed decision summaries calculated from persisted records within the viewer's authorized scope. | Relates to FR-06 and NFR-01-NFR-03. New FR/BR definitions are needed for report audience, measures, date boundaries, and treatment of resubmissions. | Sprint 3 | F-01, F-03, F-04, F-05 |
-
-Implement F-04 before the history-dependent F-05 work. Preserve the minimum decision/history entry required in F-03 for Sprint 1; proposing richer F-04 history later does not defer that Sprint 1 obligation. Sprint 3 must include an implemented and tested F-06 or F-07 domain workflow/rule by 29 November, with all agreed scope complete by 13 December.
-
-Before approving later scope, agree whether reasons are mandatory for approval, rejection, and return; which extended history events/details each role may view; return/resubmission and editing rules; filter fields; and report calculations/access. Sprint 1 assignment, self-approval prevention, and its single saved decision/history entry are now resolved in F-03; they are not postponed to F-04. Multi-stage approval is not included in this proposal; confirm whether the chosen context requires it or instructor/TA agreement for a scope variation.
-
-After approval, record the decision and update the SRS, System-Level SDS, feature contracts, and [traceability](traceability.md) before implementation. Finalize [Part D](sprints/plan.md) only after this baseline reconciliation. No new AC/test IDs, endpoint paths, or schema decisions are approved by this inventory.
+Sprint 1 F-01/F-02 contracts retain their accurate retrospective-history disclosure. Sprint 1 completion and test evidence are in the feature contracts and verification documents. Later features need their own approved feature contract, AC, STS, and DoD before implementation.

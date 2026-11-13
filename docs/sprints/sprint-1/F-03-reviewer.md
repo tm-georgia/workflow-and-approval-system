@@ -7,7 +7,7 @@ F-03 allows an authenticated Reviewer to view requests waiting for a decision an
 
 The system saves the decision status, Reviewer identity, and decision time in PostgreSQL. A Requester can later see the updated status of their own request.
 
-**Implementation status:** Implemented and locally verified on 12 November 2026. See [verification.md](verification.md) for executed results, runtime, working-tree identity, and red/green evidence. Teammate review, versioned submission, integration, and release acceptance remain pending.
+**Implementation status:** Implemented and merged into sprint-staging through PR #11. Local verification is documented in [verification.md](verification.md); a reviewed release to main is still pending.
 
 ## 2. Linked requirements
 
@@ -50,7 +50,7 @@ The user approved server assignment of every new request to one designated seede
 
 Add nullable `Request.assignedReviewerId` with a distinct User relation and an assignment/status index through an additive migration. Existing records remain unassigned; no automatic backfill or reassignment is authorized. Reviewers cannot list or decide unassigned records or records assigned to someone else. Re-check assignment in the conditional database write. Explicitly refuse self-approval (`requesterId === authenticated Reviewer ID`) even if a role changed after submission.
 
-The minimum Sprint 1 decision/history entry is the request's persisted status, deciding `reviewerId`, and `decidedAt`, saved together once. The successful decision response and the owning Requester's existing `/api/requests/mine` retrieval expose this entry; the Requester UI shows status and available decision metadata. No separate event log, reasons, return, or resubmission is introduced. Extended history/reasons remain proposed F-04/F-05 scope.
+The minimum Sprint 1 decision/history entry is the request's persisted status, deciding `reviewerId`, and `decidedAt`, saved together once. The successful decision response and the owning Requester's existing `/api/requests/mine` retrieval expose this entry; the Requester UI shows status and available decision metadata. No separate event log, reasons, return, or resubmission is introduced in Sprint 1. Reasons and ordered history are planned for Sprint 2 F-04; return/resubmission is planned for F-05.
 
 Implementation will use the drafted GET/PATCH paths below. Return `403` for an existing inaccessible/self-owned record, `404` for a missing record, and `409` for an accessible record that is no longer pending. No forbidden response contains private request details.
 
@@ -134,7 +134,7 @@ The backend must derive the Reviewer ID from the authenticated session, never fr
 
 A decision must be conditional on the request still being `PENDING`, preventing two concurrent Reviewers from successfully deciding the same request.
 
-Decision reasons and extended history are outside this proposed Sprint 1 contract and require separate team approval if added later.
+Decision reasons and extended history are assigned to Sprint 2 F-04 in the team baseline; this Sprint 1 contract does not claim they are implemented.
 
 The migration is `server/prisma/migrations/20261112000000_reviewer_assignment/migration.sql`. The assignment foreign key uses `onDelete: SetNull`; the index is `(assignedReviewerId, status, createdAt, id)`. A null assignment is never reviewable. Existing Requester/deciding-Reviewer relations and enum values are preserved. F-01 authentication schema/middleware requires no change. UI and API layers change for the Reviewer workflow; the original F-02 endpoints remain and expose the new assignment/decision fields as Request JSON.
 
@@ -199,4 +199,4 @@ F-03 is complete when:
 | 12 November 2026, red checks | Actual backend red run: 27 failed, six existing regressions passed; missing Reviewer routes returned `404`, creation did not assign, and missing designated Reviewer still allowed saving. Actual Reviewer UI red run: 12 failed because the placeholder lacked the required behavior. Logs retained locally and indexed in verification report. |
 | 12 November 2026, implementation and green checks | Added assignment migration, conditional transactional decision routes, independent authorization/rule checks, Reviewer UI, metadata display, detailed STS, and real isolated database tests. Final 45 backend/15 frontend tests, builds, and restart smoke checks passed on Node 24.15. |
 | 12 November 2026, final review corrections | Added load generations to ignore obsolete success/error/loading callbacks across StrictMode and decisions; four failing UI regressions became passing. Added owned-directory/marker/PID/port cleanup checks for attempted startup, including a real startup-timeout exercise and ten unit cases. Strengthened the concurrency test with an observed two-session row-lock barrier. Current complete suites: 55 backend and 19 frontend passing; builds/typechecks/smoke re-executed successfully. No domain rules, endpoint contracts, or feature IDs changed. |
-| Versioned review/release | Pending user's Git approval and teammate review/integration. Local files/logs establish the observed working sequence but do not substitute for immutable reviewed contract/code history. |
+| Versioned review/release | F-03 implementation and contract were merged into sprint-staging through PR #11. A reviewed release to main remains pending. |

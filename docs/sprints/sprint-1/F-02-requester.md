@@ -1,6 +1,6 @@
 # F-02 — Submit a request and view its status
 
-**Local status (12 November 2026):** Existing Requester implementation retained; contract expanded retrospectively to match it. Assignment integration, success feedback, and decision metadata display were added locally. Verification is recorded in [the Sprint 1 report](verification.md); teammate review/integration remain pending.
+**Local status (12 November 2026):** Existing Requester implementation retained; contract expanded retrospectively to match it. Assignment integration, success feedback, and decision metadata display were added locally. Verification is recorded in [the Sprint 1 report](verification.md). F-02 was merged into sprint-staging through PR #2; final release verification on main remains pending.
 
 ## Linked requirements
 

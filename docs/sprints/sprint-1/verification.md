@@ -62,7 +62,7 @@ Part E requires linked FR/BR/NFR, feature design and applicable UI/API/data defi
 
 The user explicitly approved one designated seeded Reviewer assigned by the server to every new request. Implementation persists separate `assignedReviewerId`; the existing `reviewerId` still means the deciding Reviewer. Missing/wrong-role designated accounts cause submission to fail safely with `503`. Unassigned legacy records are not reviewed or automatically backfilled. BR-05/BR-06 were added without renumbering prior requirements.
 
-Sprint 1's minimum decision/history entry is final status, deciding identity, and decision time, saved once together and retrieved by the owning Requester. The teacher's Sprint 1 example does not explicitly require extended reasons, return/resubmission, or a multi-event history. F-04/F-05 remain proposed Sprint 2 scope; F-06/F-07 remain proposed Sprint 3 scope. This task does not approve those proposals.
+Sprint 1's minimum decision/history entry is final status, deciding identity, and decision time, saved once together and retrieved by the owning Requester. The teacher's Sprint 1 example does not explicitly require extended reasons, return/resubmission, or a multi-event history. The team baseline revision on 13 November allocates F-04/F-05 to Sprint 2 and F-06/F-07 to Sprint 3. Those features remain planned, not implemented; see docs/sprints/plan.md.
 
 ## Completed requirements and engineering work
 
@@ -214,7 +214,7 @@ Generated dependencies, Prisma client, bundles, temporary Node runtime, syntheti
 - **F-01/F-02 contract history is retrospective.** Preserve that disclosure and discuss any assessment concern with the instructor. A new document revision cannot recreate a prior contract-before-code sequence.
 - **Legacy assignment/backfill is optional and requires separate approval.** Old records remain unassigned and inaccessible to Reviewers. Private developer configuration and migration/demo setup must be performed for the team's chosen development database; this task tested only isolated databases.
 - **Title-length policy needs teammate agreement.** The existing UI maximum of 120 is retained; API checks non-empty strings. No teacher-imposed maximum is asserted. This is disclosed without silently adding a new product rule.
-- **Later-sprint baseline approval remains outside Part E completion.** F-04-F-07 are still proposals; resubmission/history/reporting rules and their SRS/SDS changes must be settled before finalizing Part D.
+- **Later-sprint features are planned, not implemented.** The 13 November baseline revision allocates reasons/history and return/resubmission to Sprint 2, and filtering/reporting to Sprint 3. Their detailed contracts and tests are required before implementation.
 - **Submission packaging is still needed.** Include the complete contracts, STS, shared Product DoD, actual evidence and honest history in the assessed PDF, with the team's real names/contributions, page references, and eventually the submitted version. No PDF or Git submission was requested/performed in this local implementation task.
 
 **Readiness verdict:** ready for local teammate review; not yet ready to claim all formal Part E acceptance/review/history/integration gates are satisfied. See [Product DoD](product-dod.md).
@@ -268,3 +268,8 @@ The SHA-256 manifest below identifies local implementation/test/configuration by
 | `server/test/test-cluster-cleanup.test.mjs` | `d19fa9f22fd0d27fa1d4ce92fc442895b6aa109a1d446f9d03d35c3340be3786` |
 | `server/tsconfig.json` | `2578866835799eb41130382c3469a1462a0438b41a4f216bf2b3aba5e9039075` |
 | `server/vitest.config.ts` | `acdb291cd826eb4e647510ed79314b66c9596111fa944f69b7b7ae8a6b6a7b97` |
+
+
+## Post-integration status — 13 November 2026
+
+The available Git history now shows F-03 merged into sprint-staging through PR #11 and the Part F verification handoff merged through PR #13. This report's test results describe the recorded local verification run; rerun the required checks on the final release commit. The 13 November SRS, feature inventory, traceability, system design, and sprint plan align decision reasons/history with Sprint 2 F-04 and preserve the Sprint 1 F-03 behavior. A staging-to-main release is not recorded in the inspected local Git history.
