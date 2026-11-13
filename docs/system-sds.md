@@ -2,166 +2,90 @@
 
 ## 1. Purpose and scope
 
-The Workflow and Approval System provides an authenticated workflow for departmental purchase requests. A Requester submits a request and views its status. An authorized Reviewer reviews it and records an approval or rejection.
+The Workflow and Approval System supports departmental purchase requests. A Requester submits a purchase request, an assigned Reviewer approves or rejects it, and the Requester can retrieve the saved status. The current Sprint 1 implementation uses one approval stage. Reasons and extended event history, return/resubmission, filtering, and reports are planned in later sprints as described in the SRS and sprint plan.
 
-This document describes the current Sprint 1 design and the intended later-sprint architecture. It distinguishes working behavior from planned behavior.
+## 2. Architecture and responsibilities
 
-## 2. Architecture
-
-The system uses three logical layers:
-
-| Layer | Technology | Responsibilities |
+| Layer | Technology | Responsibility |
 |---|---|---|
-| Web client | React, TypeScript, Vite | Sign-in screen; Requester submission form and request history; displays loading, empty, and error states. The Reviewer workspace is planned for F-03. |
-| API/application | Node.js, Express, TypeScript | Authenticates users, identifies the current user, validates requests, enforces permissions, applies workflow rules, and returns JSON. |
-| Persistent database | PostgreSQL, Prisma ORM | Stores users, requests, status, ownership, and decision information. Prisma schema and migrations define the database structure. |
+| Web client | React, TypeScript, Vite | Login; Requester submission/history; Reviewer queue and decision actions; form validation and loading/empty/success/error states. |
+| API/application | Node.js, Express, TypeScript | Session identity, role/ownership/assignment checks, input validation, workflow rules, safe JSON responses. |
+| Persistence | PostgreSQL with Prisma ORM | Users, password hashes, requests, ownership, Reviewer assignment, status, decision identity/time; migrations and seed data. |
 
-In local development, the browser sends `/api` requests through the Vite proxy to the Express server on port 3000. Express uses Prisma to read and write PostgreSQL. Authentication and business-rule checks happen in the backend; hiding a button in the client is not authorization.
+The browser sends JSON requests to Express through same-origin /api routes. During local development Vite proxies /api to the backend. Express applies business rules and uses Prisma to access PostgreSQL. Client controls improve usability but are not authorization controls.
 
-```mermaid
-flowchart LR
-  U[Requester or Reviewer] --> W[React and TypeScript client]
-  W -->|Same-origin /api requests| A[Express API]
-  A --> M[Authentication and permission checks]
-  A --> P[Prisma ORM]
-  P --> D[(PostgreSQL)]
-```
+## 3. Current and planned data design
 
-## 3. Data design
+### Current Sprint 1 entities
 
-### Current database entities
-
-| Entity | Fields | Relationships and constraints |
+| Entity | Important fields | Relationships and constraints |
 |---|---|---|
-| `User` | `id`, unique `email`, `passwordHash`, `role`, `createdAt` | Role is `REQUESTER` or `REVIEWER`. A user can submit requests and may be recorded as a Reviewer. Passwords are stored as hashes. |
-| `Request` | `id`, `title`, `description`, `status`, `requesterId`, optional `reviewerId`, `createdAt`, optional `decidedAt` | Each request has one Requester owner. `requesterId` references that owner. `reviewerId` references the Reviewer who records the final decision. A new request defaults to `PENDING`. |
+| User | id, email, passwordHash, role, createdAt | Unique email; role is REQUESTER or REVIEWER; password is a bcrypt hash. |
+| Request | id, title, description, status, requesterId, assignedReviewerId, reviewerId, createdAt, decidedAt | Required Requester owner; optional assigned Reviewer and deciding Reviewer; initial status PENDING; assignment is server controlled. |
 
-`RequestStatus` currently includes `PENDING`, `APPROVED`, and `REJECTED`.
+A Requester's owner relationship is separate from the assigned Reviewer and the Reviewer who decides. Existing request records are not automatically assigned by the F-03 migration. The current decision record stores final status, deciding Reviewer, and time. The only valid Sprint 1 transitions are PENDING to APPROVED or REJECTED.
 
-### Sprint 1 decision design planned for F-03
+### Planned Sprint 2 extension
 
-For Sprint 1, one designated seeded Reviewer is authorized to review all requests in the department scope. There is no per-request assignment screen. F-03 must enforce that only this designated Reviewer can access the review queue or decide a request; a role check alone must not allow an unrelated Reviewer.
+F-04 adds decision reasons and an ordered review-history entity (or equivalent). F-05 uses retained events for return/resubmission. Contracts must specify event fields, constraints, visibility, and migrations before implementation. Sprint 1 does not currently store a reason or multi-event history.
 
-A valid Sprint 1 transition is:
+## 4. UI and navigation
 
-```text
-PENDING → APPROVED
-PENDING → REJECTED
-```
-
-F-03 will record the final status, deciding Reviewer, decision time, and decision reason. The current schema has no decision-reason field, so F-03 must add a nullable `decisionReason` field and a Prisma migration. It is empty while the request is pending and populated when a decision is recorded. The exact validation for reasons is specified in the F-03 feature contract.
-
-The requester's identity must not equal the deciding Reviewer's identity. The API rejects self-approval even if a request is incorrectly associated with the designated Reviewer.
-
-### Later-sprint data design
-
-Sprint 2 adds return/resubmission and additional approval stages. Those workflows require multiple events to be retained. The planned design is to add a `RequestHistory` (or equivalent review-event) entity with, at minimum, request ID, acting user, action, reason, and timestamp. Each event references its request and is retained when later actions occur.
-
-The exact fields, relationships, constraints, and migrations for Sprint 2 must be recorded in those feature contracts before implementation. Sprint 3 filtering and decision summaries use the authorized request and history data.
-
-### Database setup and seed data
-
-- Local database: PostgreSQL database `workflow_approval`.
-- Connection: Prisma reads `DATABASE_URL` from the server environment.
-- Schema and migration files: `server/prisma/`.
-- Seed procedure: `server/prisma/seed.ts` creates synthetic Requester and Reviewer accounts.
-- Migrations and seed data are local reproducibility tools; the README must document the commands needed to set up a fresh database.
-
-## 4. User interface and navigation
-
-| Screen/state | Behavior and current status |
+| Screen/state | Behavior |
 |---|---|
-| Sign in | Email/password form, show/hide password control, and user-safe error display. Implemented. |
-| Requester workspace | Submit a request using title and description; view own requests and statuses. Shows an empty state when no requests exist. Implemented. |
-| Loading/current user | On page load, the client asks the API whether the session identifies a signed-in user. Implemented. |
-| Reviewer workspace | Current UI shows a placeholder. F-03 will add the authorized pending-request queue and approve/reject controls, with loading, empty, success, and error states. |
-
-The client may display a control only when it is useful for the signed-in role, but all permissions are rechecked by the API.
+| Sign-in | Email/password form; show/hide password; safe invalid-login message. |
+| Requester workspace | Submit title/description and view only the signed-in Requester's requests and statuses. Show loading, empty, save-success, and safe error states. |
+| Reviewer workspace | Show only assigned, non-self-owned pending requests; allow approve/reject; show loading, empty, success, error, and retry states; suppress duplicate submissions. |
+| Current-user loading | Client obtains identity from GET /api/auth/me; it never chooses a role or owner ID. |
 
 ## 5. API conventions
 
-The API uses JSON request and response bodies. Protected operations use the HTTP-only `accessToken` cookie to identify the signed-in user. A client-supplied user ID or role is never trusted for authorization.
+The API uses JSON and safe error objects such as { "error": "user-safe message" }. Password hashes, tokens, SQL, stack traces, and secrets are not returned.
 
-### Implemented endpoints
-
-| Method and path | Access | Behavior |
+| Method/path | Access | Purpose |
 |---|---|---|
-| `POST /api/auth/login` | Public | Accepts email and password. On success, returns user ID, email, and role, and sets the authentication cookie. Invalid credentials return `401`; malformed input returns `400`. |
-| `POST /api/auth/logout` | Public; clears any session cookie | Clears the authentication cookie and returns `204`. |
-| `GET /api/auth/me` | Signed-in user | Returns the current user's ID, email, and role; missing or invalid sessions return `401`. |
-| `POST /api/requests` | Requester only | Accepts title and description. The API derives `requesterId` from the current session and creates a `PENDING` request. Invalid/blank fields return `400`; wrong role returns `403`; signed-out access returns `401`. |
-| `GET /api/requests/mine` | Requester only | Returns only requests owned by the current Requester. |
-| `GET /api/health` | Public health check | Checks database connectivity and reports a safe status. |
+| POST /api/auth/login | Public | Verify credentials; return id/email/role and set an HTTP-only cookie. |
+| POST /api/auth/logout | Public | Clear the cookie; return 204. |
+| GET /api/auth/me | Signed in | Return identity from the verified session; otherwise 401. |
+| POST /api/requests | Requester | Create a PENDING request using the session owner and server-designated Reviewer. |
+| GET /api/requests/mine | Requester | Return only the current Requester's requests. |
+| GET /api/requests/pending | Assigned Reviewer | Return only assigned, non-self-owned pending requests. |
+| PATCH /api/requests/:id/decision | Assigned Reviewer | Approve/reject a pending request and persist status, Reviewer identity, and time. |
 
-### F-03 endpoints
-
-The F-03 feature contract will specify the exact Reviewer endpoints, HTTP methods, request/response shapes, and error status codes before implementation. The endpoints must:
-
-- Allow only the designated Reviewer to read the Sprint 1 review queue.
-- Allow a decision only for a `PENDING` request.
-- Reject a Requester, an unrelated Reviewer, and the request's own Requester from decision operations.
-- Save the outcome, deciding Reviewer, decision time, and reason.
-- Reject repeated decisions without changing the stored result.
-
-### Error handling
-
-Errors use a safe JSON message, such as `{ "error": "You do not have permission." }`. The API does not return passwords, hashes, tokens, SQL, stack traces, or secret values. Use `401` for unauthenticated access, `403` for forbidden access, `400` for invalid input, and an agreed conflict/not-found status for invalid workflow state or a missing request, as specified in each feature contract.
+Use 401 for missing/invalid sessions, 403 for forbidden role/ownership/assignment, 400 for invalid input, 404 for missing records, 409 for a request already decided, and a generic 500 for unexpected failures. The F-01/F-02/F-03 contracts define endpoint-specific shapes and boundary behavior.
 
 ## 6. Role and permission matrix
 
-| Operation | Signed-out visitor | Requester | Designated Reviewer | Other Reviewer |
-|---|---:|---:|---:|---:|
-| Sign in | Allowed | Allowed | Allowed | Allowed |
-| Sign out / retrieve own current identity | No private identity | Own session | Own session | Own session |
-| Submit request | Denied | Allowed; owner comes from session | Denied | Denied |
-| List own requests | Denied | Allowed; own records only | Denied | Denied |
-| View department's pending review queue | Denied | Denied | Planned in F-03 | Denied |
-| Approve/reject pending request | Denied | Denied | Planned in F-03; cannot decide own request | Denied |
+| Operation | Signed out | Requester | Designated Reviewer |
+|---|---|---|---|
+| Sign in | Allowed | Allowed | Allowed |
+| Retrieve current identity / sign out | No private identity | Own session | Own session |
+| Submit a request | Denied | Allowed; owner comes from session | Denied |
+| List own requests | Denied | Own records only | Denied |
+| View pending review queue | Denied | Denied | Assigned, non-self-owned records only |
+| Approve/reject | Denied | Denied | Assigned non-owner; pending-only |
 
-The Sprint 1 assignment policy is that a single designated Reviewer is authorized for all requests in the department scope. F-03 must enforce that account identity on the backend. If the instructor requires a distinct reviewer ID on each request, update the design and implementation to match.
+All authorization is enforced by the API and database predicates, not merely by hidden buttons.
 
-## 7. Authentication and credential handling
+## 7. Authentication and secrets
 
-- Passwords are checked using `bcryptjs`; only password hashes are stored.
-- A successful login creates a signed JWT with a one-hour expiry.
-- The JWT is sent in an HTTP-only cookie named `accessToken`, with `SameSite=Lax`, path `/`, and `Secure` enabled in production.
-- Browser JavaScript cannot read the HTTP-only cookie.
-- The client retrieves the current identity through `GET /api/auth/me`.
-- Logout clears the browser's cookie. The JWT itself remains valid until expiry if separately copied; the client no longer sends it after the cookie is cleared.
-- `JWT_SECRET` is required to sign and verify tokens. It must be long, random, private, and different from any database password.
+Passwords are checked using bcryptjs; only hashes are stored. Successful login issues a JWT with a one-hour expiry in the HTTP-only accessToken cookie. SameSite is Lax and Secure is enabled in production. GET /api/auth/me returns the verified account identity. Logout clears the browser cookie; copied tokens remain valid until expiry, a documented limitation of this design.
 
-## 8. Configuration and secret handling
+DATABASE_URL and JWT_SECRET are supplied through environment variables. Keep local values in the ignored server/.env and deployment values in a secret manager. Never commit secrets or include them in client code or submitted evidence.
 
-| Variable | Purpose | Handling |
-|---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string for Prisma | Keep the real value in untracked `server/.env` locally; use a managed secret in deployment. |
-| `JWT_SECRET` | Signs and verifies authentication tokens | Keep it in untracked `server/.env` locally; use Secret Manager in deployment. |
-| `NODE_ENV` | Selects development or production behavior, including secure cookies | Set to `production` in production. |
-| `DESIGNATED_REVIEWER_EMAIL` | Planned F-03 setting identifying the one Reviewer authorized for Sprint 1 requests | Use a non-secret account identifier; configure on the server only. Do not accept this value from the client. |
+## 8. Reproducibility and planned GCP design
 
-Never commit real secrets, `.env` files, passwords, tokens, or production credentials. Use synthetic demo accounts only.
+The README documents dependency installation, local environment configuration, PostgreSQL setup, Prisma migration/seed, development run, production build, and test commands. Synthetic seeded accounts are used.
 
-## 9. Reproducibility and planned deployment
+For Lab 5, the intended design is:
+- Cloud Run for the containerized web/API service, serving the client and API on one origin.
+- Cloud SQL for PostgreSQL with persistent managed storage.
+- Secret Manager for DATABASE_URL and JWT_SECRET.
+- Artifact Registry for built container images.
+- Cloud Build for build/test and repeatable deployment steps.
 
-For Deliverable 1, a teammate must be able to install dependencies, configure local environment variables, run Prisma migrations and seed data, start the client/server, and run tests. The README must document those exact commands. The local PostgreSQL database is durable across application restarts.
+The app reads configuration from its environment and stores durable data in PostgreSQL rather than the disposable container filesystem. Actual Docker, CI/CD, and GCP resources are Lab 5 work.
 
-For Lab 5, the planned deployment is:
+## 9. Current implementation status
 
-- **Cloud Run** for the containerized Node/Express application. The production build can include the compiled React client, served by the Express application, so the browser and `/api` use one origin.
-- **Cloud SQL for PostgreSQL** for managed relational data and durable database storage.
-- **Secret Manager** for `DATABASE_URL` and `JWT_SECRET`.
-- **Artifact Registry** to store built container images.
-- **Cloud Build** to run build/test checks and build/publish/deploy approved versions.
-
-The application must use environment configuration and must not depend on files inside an ephemeral application container for persistent data. Docker, CI/CD, and GCP deployment are deferred to Lab 5; this section records the intended design only. Cloud Run runs container images, Cloud SQL provides managed PostgreSQL, and Secret Manager stores sensitive configuration. [Cloud Run](https://docs.cloud.google.com/run/docs/quickstarts/deploy-container), [Cloud SQL for PostgreSQL](https://docs.cloud.google.com/sql/docs/postgres), [Secret Manager](https://docs.cloud.google.com/secret-manager/docs/overview).
-
-## 10. Known implementation status and gaps
-
-- F-01 authentication is implemented and tested.
-- F-02 Requester submission and retrieval are implemented and tested.
-- The Reviewer UI and F-03 queue/decision API are not yet implemented.
-- F-03 must enforce the designated Reviewer, self-approval prevention, Requester/reviewer restrictions, and pending-only decisions.
-- F-03 needs the `decisionReason` database field and migration.
-- Sprint 2 adds multi-event history for return/resubmission and additional approval stages.
-- Sprint 3 adds filtering and decision summaries/reporting.
-- This document describes the intended Sprint 1 design and later-sprint plan; it does not claim unfinished behavior is already working.
+F-01, F-02, and F-03 are implemented and locally verified. The latest report records 55 backend and 19 frontend tests passing, builds/typechecks, and database-backed restart smoke checks. F-04–F-07 are planned future work; their full acceptance criteria and executable tests are created before implementation in their respective sprints.

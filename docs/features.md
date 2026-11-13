@@ -1,29 +1,28 @@
 # Part B — Feature Inventory
 
-This inventory follows Theme 5. It allocates the full product baseline across three sprints; detailed contracts and executable tests for later-sprint features are due before those features are implemented.
+This inventory covers the selected Theme 5 product baseline across all three sprints. Sprint 1 implementation is identified separately from later planned work. Later features receive requirement and sprint allocation now; their detailed contracts and executable tests are prepared before implementation in their sprint.
 
-| ID | Feature | Requirements | Sprint | Dependencies |
+| ID | Feature | Requirements | Sprint | Dependencies and completion outcome |
 |---|---|---|---|---|
-| F-01 | User signs in/out and retrieves current identity | FR-01, NFR-01, NFR-04 | Sprint 1 | Seeded accounts, database |
-| F-02 | Requester submits a request and views only their own status | FR-02, FR-03, BR-01, BR-02, NFR-02, NFR-03 | Sprint 1 | F-01 |
-| F-03 | Designated Reviewer views authorized pending requests and approves/rejects with a recorded reason and outcome | FR-04, FR-05, FR-06, BR-03, BR-04, BR-05, BR-06, NFR-02, NFR-03 | Sprint 1 | F-01, F-02; designated-Reviewer policy |
-| F-04 | Reviewer returns a request with a reason; Requester revises and resubmits it with events retained | FR-07, FR-08, BR-07, NFR-02, NFR-03 | Sprint 2 | F-02, F-03; multi-event history |
-| F-05 | Add ordered approval stages and record each stage's outcome | FR-09, BR-08, NFR-02, NFR-03 | Sprint 2 | F-03, F-04; agreed stage sequence |
-| F-06 | Filter authorized requests and produce decision summaries/reports | FR-10, FR-11, BR-09, NFR-02, NFR-03 | Sprint 3 | F-03, F-04, F-05; retained history |
+| F-01 | Sign in/out and retrieve current identity | FR-01, NFR-01, NFR-02, NFR-04 | Sprint 1 | Seeded accounts and database. User session identity is enforced by the API. |
+| F-02 | Submit a request and view its own status | FR-02, FR-03, BR-01, BR-02, BR-05, NFR-01–03 | Sprint 1 | F-01. Save a Pending request under the signed-in Requester and retrieve only that Requester's records. |
+| F-03 | Review assigned pending requests and approve/reject | FR-04–06, BR-03–06, NFR-01–03 | Sprint 1 | F-01, F-02, PostgreSQL. Save status, deciding Reviewer, and decision time; reject unauthorized/self/repeated decisions. |
+| F-04 | Save decision reasons and ordered review history | FR-07, BR-07, NFR-01–04 | Sprint 2 | F-01–03. Add persisted reason/history events and authorized retrieval. |
+| F-05 | Return a request and allow owner correction/resubmission | FR-08, BR-08, NFR-01–03 | Sprint 2 | F-04 history. Preserve earlier events and test valid/invalid state transitions. |
+| F-06 | Filter authorized request lists | FR-09, NFR-01–03 | Sprint 3 | F-01–05. Filters must not widen the user's record access. |
+| F-07 | Provide decision summaries and reports | FR-10, BR-09, NFR-01–04 | Sprint 3 | F-04–06. Summaries use persisted decisions and respect authorization. |
 
 ## Cross-cutting responsibilities
 
 | Responsibility | Requirements | Sprint and verification |
 |---|---|---|
-| Authentication, session lifecycle, and secret handling | FR-01, NFR-01, NFR-04 | Sprint 1 through F-01; API tests and configuration/repository review. |
-| Backend permission, ownership, designated-Reviewer, and self-approval enforcement | BR-02 to BR-05, NFR-02 | Sprint 1 through F-02/F-03; negative API tests. Extend to resubmission, approval stages, and reports in Sprints 2/3. |
-| Persistent request and decision data | FR-02, FR-06, NFR-03 | Sprint 1 through F-02/F-03; API/database write-and-read tests. Extend to multi-event history and reports in Sprints 2/3. |
-| Local reproducible setup and synthetic demo accounts | NFR-03, NFR-04 | Sprint 1 README, Prisma migrations/seed, and local build/test evidence. |
+| Authentication and secret handling | FR-01, NFR-01, NFR-04 | Sprint 1 F-01; valid/invalid login, logout, current identity, protected access, and configuration inspection. |
+| Backend role, assignment, ownership, and self-approval enforcement | BR-02–06, NFR-02 | Sprint 1 F-01–03; API/database negative tests. Extend tests for F-05/F-06/F-07 later. |
+| Persistent requests and decisions | FR-02, FR-06, NFR-03 | Sprint 1 F-02/F-03; write/read and restart checks. Extend to event history in Sprint 2. |
+| Reproducible setup and synthetic accounts | NFR-03/NFR-04 | Sprint 1 README, migrations, seed procedure, and local build/test evidence. |
 
-## Coverage gaps and approved changes
+## Coverage and scope decisions
 
-- F-01 and F-02 are implemented and merged into `sprint-staging`; F-03 remains to be completed and verified.
-- Sprint 1 uses one designated Reviewer authorized for the department's request scope. F-03 must enforce this policy; a role check alone is insufficient to reject an unrelated Reviewer.
-- Existing tests do not directly prove cross-Requester record denial, unrelated Reviewer denial, self-approval denial, or a Requester attempting a review operation. Add these tests for Sprint 1. F-03 also needs a decision-reason field and migration; update the Part C data model when that design is finalized.
-- F-04, F-05, and F-06 represent the theme's later-sprint work: return/resubmission, additional stages, filtering, and decision summaries/reporting. They are planned, not implemented for Deliverable 1.
-- No approved changes to the master scope are recorded. If the team changes scope, record the date and rationale and update the SRS, traceability, sprint plan, and affected contracts together.
+All Theme 5 capabilities are allocated: reasons/history and return/resubmission are Sprint 2; filtering and decision summaries are Sprint 3. This project uses one approval stage and one server-designated Reviewer for the selected department purchase context. These decisions specialize the theme; they do not claim that later features are already implemented.
+
+Sprint 1 F-01/F-02 contracts retain their accurate retrospective-history disclosure. Sprint 1 completion and test evidence are in the feature contracts and verification documents. Later features need their own approved feature contract, AC, STS, and DoD before implementation.

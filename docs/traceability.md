@@ -1,37 +1,25 @@
 # Part B — Requirements Traceability
 
-| Requirement | Feature / responsibility | Sprint | Verification / current status |
+Each baseline requirement is assigned to a feature and sprint. Sprint 1 rows identify the existing acceptance/test evidence. Later-sprint rows define verification targets; their detailed AC and executable tests will be recorded in those feature contracts before implementation.
+
+| Requirement | Feature | Sprint | Planned verification / current evidence |
 |---|---|---|---|
-| FR-01 — Sign in/out and retrieve current identity | F-01 | Sprint 1 | Existing `server/test/requests.test.ts`: `TEST-02`, `TEST-03`, `TEST-AUTH-ME-01`, `TEST-AUTH-INVALID-01`; UI `client/src/App.test.tsx`: `TEST-UI-01`. |
-| FR-02 — Requester submits a request | F-02 | Sprint 1 | Existing `server/test/requests.test.ts`: `TEST-03` checks persistence and Pending status; UI `TEST-UI-01` exercises submission with a simulated API. |
-| FR-03 — Requester views own requests/status | F-02 | Sprint 1 | `TEST-03` retrieves the created request; `TEST-UI-01` shows Pending. Add a direct cross-Requester record-access test. |
-| FR-04 — Designated Reviewer views authorized pending requests | F-03 | Sprint 1 | Planned F-03 API/database tests: designated Reviewer succeeds; unrelated Reviewer and Requester are denied. Add stable IDs in the F-03 contract. |
-| FR-05 — Reviewer approves/rejects | F-03 | Sprint 1 | Planned positive API/database tests for both decisions, actor identity, required reason, and no self-approval. |
-| FR-06 — Saved review result can be retrieved | F-03 | Sprint 1 | Planned integration test: decide a request, read it back, and verify status, reviewer, decision time, and reason. |
-| FR-07 — Reviewer returns request with reason | F-04 | Sprint 2 | Define return-state and reason tests in the F-04 contract before implementation. |
-| FR-08 — Requester revises/resubmits returned request | F-04 | Sprint 2 | Define owner/state validation and retained-history tests in the F-04 contract. |
-| FR-09 — Additional ordered approval stages | F-05 | Sprint 2 | Define stage-order, authorization, outcome, and history tests in the F-05 contract. |
-| FR-10 — Filter authorized requests | F-06 | Sprint 3 | Define filter-result and role/ownership tests in the F-06 contract. |
-| FR-11 — Decision summaries/reports | F-06 | Sprint 3 | Define summary correctness and permission-scope tests in the F-06 contract. |
-| BR-01 — New request starts Pending | F-02 | Sprint 1 | `TEST-03` expects `PENDING`; UI `TEST-UI-01` displays `PENDING`. |
-| BR-02 — Requester accesses only own requests | F-02 / ownership responsibility | Sprint 1 | `TEST-03` shows client-supplied requester ID is ignored. Add a test where Requester A attempts to retrieve Requester B's record; this exact case is not covered yet. |
-| BR-03 — Only designated Reviewer may act in the review scope | F-03 / authorization responsibility | Sprint 1 | Planned tests: designated Reviewer can access; a second unrelated Reviewer cannot. `TEST-04` only checks Reviewer denial from the Requester-only list and is not sufficient for this rule. |
-| BR-04 — No self-approval | F-03 | Sprint 1 | Planned test: request owner attempts to decide own request; expect forbidden response and no database change. |
-| BR-05 — Only Pending requests can be approved/rejected | F-03 | Sprint 1 | Planned test: make one decision, then attempt another; expect rejection and original saved decision unchanged. |
-| BR-06 — Decision is recorded | F-03 | Sprint 1 | Planned database test checks final status, acting Reviewer ID, decision timestamp, and reason after retrieving the request. |
-| BR-07 — Return/resubmit only by owner and in allowed state | F-04 | Sprint 2 | Define positive and forbidden/boundary tests before implementation. |
-| BR-08 — Approval stages occur in order | F-05 | Sprint 2 | Define test for a later-stage action before earlier approval; expect rejection and no state change. |
-| BR-09 — Reports respect access scope | F-06 | Sprint 3 | Define report data-scope tests before implementation. |
-| NFR-01 — Signed-out protected access is rejected | F-01 / authentication responsibility | Sprint 1 | Existing `TEST-01` expects HTTP `401`; `TEST-AUTH-INVALID-01` verifies invalid login leaves `/api/auth/me` unauthorized. |
-| NFR-02 — Backend enforces role, ownership, reviewer authorization, and self-approval | F-01, F-02, F-03; extend F-04/F-05/F-06 | Sprints 1–3 | Existing `TEST-04` checks only the Reviewer-to-Requester-list restriction. Add the cross-user, unrelated-Reviewer, Requester-review, and self-approval tests in Sprint 1; extend for later workflows and reports. |
-| NFR-03 — Request/decision data persists | F-02, F-03; extend F-04/F-05/F-06 | Sprints 1–3 | `TEST-03` verifies request persistence. Add F-03 decision persistence test; extend for event history and reporting. |
-| NFR-04 — Passwords and secrets protected | F-01 / security responsibility | Sprint 1 | Verify bcrypt password hashes, safe API responses, and no real secrets in Git or client code. |
+| FR-01 | F-01 | 1 | F-01 AC-01–AC-06; login, invalid login, current identity, logout, and protected access tests in server/test/requests.test.ts. |
+| FR-02, BR-01 | F-02 | 1 | F-02 AC-01/05; backend TEST-03 verifies saved PENDING request; UI submission journey is TEST-UI-01. |
+| FR-03, BR-02 | F-02 | 1 | F-02 AC-02–04; requester ownership and cross-requester privacy API tests, including TEST-F02-OWNERSHIP. |
+| FR-04, BR-03, BR-05 | F-03 | 1 | F-03 AC-01/10; assigned queue, wrong-role/unassigned Reviewer, and server-assignment tests in server/test/reviewer.test.ts. |
+| FR-05, BR-04, BR-06 | F-03 | 1 | F-03 AC-02/03/05–08/11; approval/rejection, wrong-role, self-approval, repeat, invalid, and concurrent-decision tests. |
+| FR-06, NFR-03 | F-03 | 1 | F-03 AC-04; database read-back, Requester retrieval, and built-server restart smoke check. |
+| FR-07, BR-07 | F-04 | 2 | Planned: test that each decision reason is required, saved with its event, ordered, and retrievable only by authorized roles. |
+| FR-08, BR-08 | F-05 | 2 | Planned: UI/API/database return → owner edit/resubmit → review journey; test wrong owner, invalid transitions, and preservation of earlier history. |
+| FR-09 | F-06 | 3 | Planned: matching/no-match/invalid filter tests and proof that filters preserve role and ownership boundaries. |
+| FR-10, BR-09 | F-07 | 3 | Planned: compare reports against known persisted decisions, including empty/date-boundary cases and authorization scope. |
+| NFR-01 | F-01, F-02, F-03 | 1; extend in 2–3 | Signed-out protected endpoints return 401 without private data; extend for later endpoints. |
+| NFR-02 | F-01–F-03; extend in 2–3 | 1; extend in 2–3 | Role, ownership, assignment, and self-approval tests; later workflows/reports retain the same API enforcement. |
+| NFR-04 | F-01, F-04, F-07 | 1–3 | Password hashes, no secrets in client/API/Git, and safe report behavior; verify by tests and repository inspection. |
 
-## Coverage gaps and scope changes
+## Status and scope
 
-1. F-03 implementation and its tests for designated Reviewer access, self-approval, Requester review denial, invalid transitions, and decision persistence are outstanding.
-2. The current tests do not directly demonstrate that one Requester cannot retrieve another Requester's record. Add this test before claiming full BR-02 verification.
-3. Existing request creation does not store a per-request Reviewer assignment. The agreed Sprint 1 policy is that one designated Reviewer is authorized for the entire department scope; F-03 must enforce that identity. If the instructor requires an explicit per-request assigned ID, update the design and implementation.
-4. The current Request record stores one final status, Reviewer ID, and decision time, but has no decision-reason field. F-03 must add that field and a migration; update the Part C data model. Sprint 2 must extend the record to multi-event history for returned requests and additional stages.
-5. Later-sprint requirements have feature and sprint allocations now; their detailed AC and executable tests are due before implementation in their respective sprints.
-6. No approved scope changes are recorded. Document any future change with its date and rationale.
+F-01, F-02, and F-03 are implemented and present in the locally inspected sprint-staging history. The verification report records 55 backend and 19 frontend tests passing on the tested local version; the final release version must be verified again after integration.
+
+F-04–F-07 are planned, not implemented. Decision reasons and extended history are deliberately allocated to Sprint 2; this preserves the existing Sprint 1 behavior while covering the Theme 5 requirement in the full product baseline. The selected workflow has one approval stage. If the team or instructor changes these decisions, update the SRS, feature inventory, plan, SDS, and affected contracts together.
