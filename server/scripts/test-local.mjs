@@ -63,7 +63,7 @@ try {
     run("start", pgCommand("pg_ctl"), [
       "-D", dataDir,
       "-l", path.join(runDir, "postgres.log"),
-      "-o", `-h 127.0.0.1 -p ${port}`,
+      "-o", `-h 127.0.0.1 -p ${port} -c unix_socket_directories=`,
       "-w", "-t", checkStartupTimeout ? "0" : "60",
       "start",
     ]);
