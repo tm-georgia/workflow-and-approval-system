@@ -58,7 +58,25 @@ function run(name, command, args) {
 try {
   run("initdb", pgCommand("initdb"), ["-D", dataDir, "-U", "workflow_test", "--auth=trust", "--encoding=UTF8", "--locale=C"]);
   startupAttempted = true;
-  run("start", pgCommand("pg_ctl"), ["-D", dataDir, "-l", path.join(runDir, "postgres.log"), "-o", `-h 127.0.0.1 -p ${port}`, "-w", "-t", checkStartupTimeout ? "0" : "60", "start"]);
+
+  try {
+    run("start", pgCommand("pg_ctl"), [
+      "-D", dataDir,
+      "-l", path.join(runDir, "postgres.log"),
+      "-o", `-h 127.0.0.1 -p ${port}`,
+      "-w", "-t", checkStartupTimeout ? "0" : "60",
+      "start",
+    ]);
+  } catch (error) {
+    const postgresLog = path.join(runDir, "postgres.log");
+
+    if (existsSync(postgresLog)) {
+      console.error("\nPostgreSQL startup log:");
+      process.stderr.write(readFileSync(postgresLog, "utf8"));
+    }
+
+    throw error;
+  }
   if (checkStartupTimeout) throw new Error("Startup-timeout exercise: checking cleanup without running application tests.");
   run("migrations", process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"]);
   run("seed", process.execPath, ["--import", "tsx", "prisma/seed.ts"]);
