@@ -393,3 +393,163 @@ The backend and frontend production builds completed successfully, and all 57 ba
 
 
 Actual production deployment, database provisioning, secret configuration, and Cloud Run resource setup remain future tasks.
+
+## ## 10. Docker and Clean Build
+
+### 10.1 Docker Configuration
+
+The project supports local containerized development and production-style testing using Docker and Docker Compose.
+
+The Docker configuration includes:
+
+- `server/Dockerfile`: Builds the backend using a multi-stage Docker build.
+- `client/Dockerfile`: Builds the React frontend and serves it using Nginx.
+- `server/.dockerignore`: Excludes unnecessary backend files from the Docker build context.
+- `client/.dockerignore`: Excludes unnecessary frontend files from the Docker build context.
+- `client/nginx.conf`: Configures Nginx to serve the frontend and forward `/api/` requests to the backend.
+- `docker-compose.yml`: Defines the PostgreSQL database, migration service, backend, and frontend.
+
+### 10.2 Docker Services and Ports
+
+Docker Compose starts the following services:
+
+| Service | Purpose | Host Port |
+|---|---|---|
+| client | React frontend served by Nginx | 3000 |
+| server | Express backend API | 4000 |
+| db | PostgreSQL database | 5433 |
+| migrate | Applies database migrations | No published port |
+
+The backend listens on port `3000` inside its container and is exposed on host port `4000`.
+
+The frontend is available at:
+
+`http://localhost:3000`
+
+The backend health endpoint is available directly at:
+
+`http://localhost:4000/api/health`
+
+The frontend Nginx configuration forwards API requests to the backend using the internal Docker service address:
+
+`http://server:3000`
+
+### 10.3 Building and Starting the Application
+
+Run the following commands from the repository root.
+
+Build the Docker images:
+
+```powershell
+docker compose build
+```
+
+Start the application:
+
+```powershell
+docker compose up -d
+```
+
+Docker Compose starts PostgreSQL, waits for the database health check, applies database migrations, and then starts the backend and frontend services.
+
+Check the running services:
+
+```powershell
+docker compose ps
+```
+
+### 10.4 Database Migrations
+
+The `migrate` service runs Prisma migrations before the backend starts.
+
+It uses:
+
+```powershell
+docker compose logs migrate
+```
+
+A successful migration should report:
+
+`All migrations have been successfully applied.`
+
+Database migrations create or update the database schema. Demo account seeding is a separate operation and is not automatically performed by the migration service.
+
+### 10.5 Health Checks and API Proxy
+
+The PostgreSQL service uses `pg_isready` to check database availability.
+
+The backend health check requests:
+
+`http://127.0.0.1:3000/api/health`
+
+The backend reports a healthy status only when its database connection is working.
+
+The frontend Nginx server forwards API requests to the backend container through the Docker network.
+
+### 10.6 Stopping and Restarting Containers
+
+To stop the application:
+
+```powershell
+docker compose stop
+```
+
+To start the existing containers again:
+
+```powershell
+docker compose start
+```
+
+To stop and remove the Compose containers and network:
+
+```powershell
+docker compose down
+```
+
+The named database volume is preserved when using `docker compose down`.
+
+Do not use `docker compose down -v` unless intentionally deleting the local database volume and its stored data.
+
+### 10.7 Clean Rebuild
+
+To rebuild the application images without using cached build layers:
+
+```powershell
+docker compose build --no-cache
+```
+
+Then start the application:
+
+```powershell
+docker compose up -d
+```
+
+Check the service status and logs:
+
+```powershell
+docker compose ps
+docker compose logs
+```
+
+The PostgreSQL database uses a named volume to preserve its data across container recreation.
+
+### 10.8 Local Docker Verification
+
+The following Docker checks were performed:
+
+| Check | Result |
+|---|---|
+| Docker Compose configuration validation | Passed |
+| Backend Docker image build | Passed |
+| Frontend Docker image build | Passed |
+| Database container startup | Passed |
+| Database health check | Passed |
+| Prisma migration service | Passed |
+| Backend container health check | Passed |
+| Frontend container startup | Passed |
+| Backend health endpoint | Passed |
+| Frontend-to-backend API proxy | Passed |
+
+The local Docker application is accessible through the frontend at `http://localhost:3000`.
+
+These checks verify the local containerized setup. They do not represent a production deployment to Google Cloud Run.
