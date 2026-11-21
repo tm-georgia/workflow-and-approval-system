@@ -1,0 +1,15 @@
+
+node_modules
+dist
+
+# Git files
+.git
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Operating system files
+.DS_Store
+Thumbs.db

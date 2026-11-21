@@ -1,0 +1,22 @@
+
+node_modules
+dist
+generated
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Git files
+.git
+
+# Local development tools
+.agents
+.claude
+.windsurf
+skills-lock.json
+
+# Operating system files
+.DS_Store
+Thumbs.db

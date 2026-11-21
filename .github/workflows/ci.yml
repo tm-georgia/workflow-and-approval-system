@@ -1,0 +1,87 @@
+﻿name: CI - Pull Request Checks
+
+on:
+  pull_request:
+    branches:
+      - staging
+      - sprint-staging
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    name: Server Tests and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install PostgreSQL tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-client libpq-dev
+
+      - name: Configure PostgreSQL binary directory
+        shell: bash
+        run: |
+          PG_BIN="$(pg_config --bindir)"
+          echo "PG_BIN=$PG_BIN" >> "$GITHUB_ENV"
+          test -x "$PG_BIN/initdb"
+          test -x "$PG_BIN/pg_ctl"
+          echo "PostgreSQL binaries found in: $PG_BIN"
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://workflow:workflow_local_password@localhost:5432/workflow?schema=public
+        run: npm run generate -- --config prisma7.config.ts
+
+      - name: Run server tests
+        working-directory: server
+        run: npm test
+
+      - name: Build server
+        working-directory: server
+        run: npm run build
+
+  client:
+    name: Client Tests and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Run client tests
+        working-directory: client
+        run: npm test
+
+      - name: Build client
+        working-directory: client
+        run: npm run build
