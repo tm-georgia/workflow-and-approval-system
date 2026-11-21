@@ -21,7 +21,27 @@ RUN npm run generate -- --config prisma7.config.ts
 RUN npm run build
 
 
-# Stage 2: Production runtime
+# Stage 2: Migration and provisioning jobs. Never publish the builder stage.
+# Start clean so build-time environment and development files are not retained.
+FROM node:24-alpine AS operations
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Prisma CLI and tsx require the installed development dependencies.
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/generated ./generated
+COPY package.json package-lock.json prisma7.config.ts tsconfig.json ./
+COPY prisma/schema.prisma ./prisma/schema.prisma
+COPY prisma/migrations ./prisma/migrations
+COPY prisma/provision-users.ts ./prisma/provision-users.ts
+
+USER node
+# Jobs explicitly select migrate/provision commands and inject runtime secrets.
+CMD ["node", "--version"]
+
+
+# Stage 3: Production runtime (keep this last as the default build target)
 FROM node:24-alpine AS production
 
 WORKDIR /app
