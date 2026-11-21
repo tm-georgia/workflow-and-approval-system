@@ -6,7 +6,6 @@ generated
 # Environment variables and secrets
 .env
 .env.*
-!.env.example
 
 # Git files
 .git

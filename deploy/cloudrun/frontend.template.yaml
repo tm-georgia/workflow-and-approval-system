@@ -1,0 +1,47 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: workflow-frontend
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/invoker-iam-disabled: 'false'
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cpu-throttling: 'true'
+        run.googleapis.com/container-dependencies: '{"nginx":["token-helper"]}'
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '2'
+    spec:
+      serviceAccountName: ${SERVICE_ACCOUNT}
+      containerConcurrency: 20
+      timeoutSeconds: 60
+      containers:
+        - name: nginx
+          image: ${NGINX_IMAGE}
+          ports:
+            - containerPort: 80
+          resources:
+            limits: {cpu: '1', memory: 256Mi}
+          env:
+            - {name: BACKEND_URL, value: ${BACKEND_URL}}
+            - {name: BACKEND_AUTH_MODE, value: google}
+          startupProbe:
+            httpGet: {path: /, port: 80}
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 12
+        - name: token-helper
+          image: ${HELPER_IMAGE}
+          resources:
+            limits: {cpu: '1', memory: 256Mi}
+          env:
+            - {name: BACKEND_AUDIENCE, value: ${BACKEND_URL}}
+            - {name: PORT, value: '8081'}
+          startupProbe:
+            httpGet: {path: /health, port: 8081}
+            timeoutSeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
