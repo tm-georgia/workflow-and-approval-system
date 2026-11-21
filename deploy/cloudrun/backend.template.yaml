@@ -1,0 +1,43 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: workflow-backend
+  annotations:
+    # IAM-private, not VPC-internal: all network callers must pass IAM first.
+    run.googleapis.com/ingress: all
+    run.googleapis.com/invoker-iam-disabled: 'false'
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cpu-throttling: 'true'
+        run.googleapis.com/cloudsql-instances: cpe334-workflow-approval-2026:asia-southeast1:workflow-db
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '1'
+    spec:
+      serviceAccountName: ${SERVICE_ACCOUNT}
+      containerConcurrency: 4
+      timeoutSeconds: 60
+      containers:
+        - name: backend
+          image: ${BACKEND_IMAGE}
+          ports:
+            - containerPort: 8080
+          resources:
+            limits: {cpu: '1', memory: 512Mi}
+          env:
+            - {name: NODE_ENV, value: production}
+            - {name: HOST, value: 0.0.0.0}
+            - {name: DESIGNATED_REVIEWER_EMAIL, value: ${REVIEWER_EMAIL}}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: workflow-database-url, key: ${RUNTIME_DB_VERSION}}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: {name: workflow-jwt-secret, key: ${JWT_VERSION}}
+          startupProbe:
+            httpGet: {path: /api/health, port: 8080}
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 12

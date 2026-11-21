@@ -12,6 +12,32 @@ permissions:
   contents: read
 
 jobs:
+  token-helper:
+    name: Private Backend Proxy Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: deploy/token-helper/package-lock.json
+      - name: Install helper dependencies
+        working-directory: deploy/token-helper
+        run: npm ci
+      - name: Test helper and deployment configuration
+        working-directory: deploy/token-helper
+        run: npm test
+      - name: Build local proxy images
+        run: |
+          docker build --tag workflow-client:lab5-private ./client
+          docker build --tag workflow-token-helper:lab5-private ./deploy/token-helper
+      - name: Test private proxy boundaries
+        working-directory: deploy/token-helper
+        run: npm run test:proxy
+
   server:
     name: Server Tests and Build
     runs-on: ubuntu-latest
