@@ -1,0 +1,152 @@
+name: Deploy Main Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: lab5-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Release validation
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact release
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify production approval settings before cloud authorization
+        if: vars.GCP_DEPLOY_ENABLED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node deploy/github-environment.mjs
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+            deploy/token-helper/package-lock.json
+      - name: Install PostgreSQL tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-client libpq-dev
+          echo "PG_BIN=$(pg_config --bindir)" >> "$GITHUB_ENV"
+      - name: Install locked dependencies
+        run: |
+          npm --prefix client ci
+          npm --prefix server ci
+          npm --prefix deploy/token-helper ci
+      - name: Client tests and production build
+        run: |
+          npm --prefix client test
+          npm --prefix client run build
+      - name: Server tests and production build
+        env:
+          DATABASE_URL: postgresql://unused@127.0.0.1:1/unused
+        run: |
+          npm --prefix server audit --omit=dev --audit-level=high
+          npm --prefix server run generate -- --config prisma7.config.ts
+          npm --prefix server test
+          npm --prefix server run build
+      - name: Private proxy and release contract checks
+        run: |
+          npm --prefix deploy/token-helper test
+          node --test deploy/test/*.test.mjs
+          python -B -m unittest discover -s deploy/test -p 'test_*.py'
+          docker build --platform=linux/amd64 --target=production --build-arg RELEASE_SHA="$GITHUB_SHA" --tag workflow-client:lab5-private ./client
+          docker build --platform=linux/amd64 --target=production --tag workflow-token-helper:lab5-private ./deploy/token-helper
+          npm --prefix deploy/token-helper run test:proxy
+
+  deploy:
+    name: Deploy approved main commit
+    needs: verify
+    if: github.ref == 'refs/heads/main' && vars.GCP_DEPLOY_ENABLED == 'true'
+    environment: lab5-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RUNTIME_DB_VERSION: ${{ vars.GCP_RUNTIME_DB_VERSION }}
+      JWT_VERSION: ${{ vars.GCP_JWT_VERSION }}
+    steps:
+      - name: Checkout exact release
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+        with:
+          version: '>= 516.0.0'
+          skip_install: false
+      - name: Prepare renderer
+        run: |
+          npm --prefix deploy/token-helper ci
+          npm --prefix deploy/token-helper run build
+      - name: Build four release images locally
+        run: node deploy/release.mjs build
+      - name: Authenticate dedicated deployment identity
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_DEPLOY_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 1800s
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Upload immutable images
+        env:
+          CLOUDSDK_AUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          DOCKER_CONFIG: ${{ runner.temp }}/lab5-docker
+        run: node deploy/release.mjs publish
+      - name: Update existing services and verify running commit
+        env:
+          CLOUDSDK_AUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: node deploy/release.mjs deploy
+      - name: Preserve non-sensitive deployment evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: ignore
+          include-hidden-files: true
+          path: |
+            .local/release/built.json
+            .local/release/images.json
+            .local/release/rollback.json
+            .local/release/backend-revision.json
+            .local/release/frontend-revision.json
+            .local/release/verification.json
+      - name: Remove ephemeral Docker authentication
+        if: always()
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/lab5-docker
+        shell: bash
+        run: |
+          test "$DOCKER_CONFIG" = "$RUNNER_TEMP/lab5-docker"
+          rm -f -- "$DOCKER_CONFIG/config.json"

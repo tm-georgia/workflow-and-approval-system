@@ -5,11 +5,14 @@ import { prisma } from "./prisma";
 import { authRouter } from "./auth";
 import { requestRouter } from "./requests";
 import { reviewerRouter } from "./reviewer";
+import { createVersionRouter } from "./version";
 
 export const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+
+app.use("/api/version", createVersionRouter());
 
 app.use("/api/auth", authRouter);
 app.use("/api/requests", requestRouter);

@@ -222,6 +222,13 @@ button:disabled {
   opacity: 0.6;
 }
 
+.release-badge {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px 24px;
+  color: #52636b;
+}
+
 @media (max-width: 720px) {
   .columns {
     grid-template-columns: 1fr;

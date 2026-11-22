@@ -12,11 +12,15 @@ RUN npm ci
 COPY . .
 
 # Build the production frontend
+ARG RELEASE_SHA=development
 RUN npm run build
 
 
 # Stage 2: Serve the frontend using Nginx
 FROM nginx:alpine AS production
+
+ARG RELEASE_SHA=development
+LABEL org.opencontainers.image.revision=$RELEASE_SHA
 
 # Copy the production build into Nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
