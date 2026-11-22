@@ -30,6 +30,10 @@ jobs:
       - name: Test helper and deployment configuration
         working-directory: deploy/token-helper
         run: npm test
+      - name: Validate release workflow and safe operations tooling
+        run: |
+          node --test deploy/test/*.test.mjs
+          python -B -m unittest discover -s deploy/test -p 'test_*.py'
       - name: Build local proxy images
         run: |
           docker build --tag workflow-client:lab5-private ./client
@@ -80,6 +84,10 @@ jobs:
       - name: Run server tests
         working-directory: server
         run: npm test
+
+      - name: Check production dependency security
+        working-directory: server
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Build server
         working-directory: server

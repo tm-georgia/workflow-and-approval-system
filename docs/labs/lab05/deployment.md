@@ -4,6 +4,8 @@
 
 ## 1. Purpose
 
+**Issues 7-8 local preparation:** see the [automated main release procedure](issue07-automated-deployment.md) for the workflow, environment inputs, dedicated deployment IAM/WIF commands, immutable source/version verification, resource impact and approval-only rollback. The [persistence and credential-rotation runbook](issue08-persistence.md) prepares R-04/C-05 without production writes. No automated cloud deployment or live persistence proof is claimed. Issue 6's uncommitted documentation/evidence remains preserved in its separate original worktree.
+
 
 
 This document records the completed first Google Cloud deployment of the Workflow and Approval System and preserves the preparation notes that preceded it.
