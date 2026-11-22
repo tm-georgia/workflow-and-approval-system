@@ -37,19 +37,67 @@ export function releaseContext(env) {
     dbVersion: env.RUNTIME_DB_VERSION, jwtVersion: env.JWT_VERSION };
 }
 
-function command(binary, args, { input, allowMissing = false } = {}) {
-  const result = spawnSync(binary, args, { cwd: workspace, encoding: 'utf8', input, windowsHide: true });
-  if (result.error || result.status !== 0) {
-    if (allowMissing && /NOT_FOUND/.test(result.stderr ?? '')) return null;
-    // Never echo child stdout/stderr: authentication errors can contain token material.
-    throw new Error(binary + ' ' + args.slice(0, 3).join(' ') + ' failed (exit ' + result.status + '). No later operations executed.');
+export function command(binary, args, { input } = {}, execute = spawnSync) {
+  let result;
+  const failed = () => new Error('Release command failed. No later operations executed.');
+  try {
+    result = execute(binary, args, { cwd: workspace, encoding: 'utf8', input, windowsHide: true });
+  } catch {
+    throw failed();
   }
+  // Never echo arguments, child output or process errors: they can contain secrets.
+  if (!result || result.error || result.status !== 0 || result.signal != null || typeof result.stdout !== 'string') throw failed();
   return result.stdout.trim();
 }
 const cloudArgs = ['--project=' + settings.project, '--region=' + settings.region, '--quiet'];
 function cloud(args, options) { return command('gcloud', [...args, ...cloudArgs], options); }
-function artifact(args, options) {
-  return command('gcloud', ['artifacts', 'docker', ...args, '--project=' + settings.project, '--quiet'], options);
+function artifact(args, options, run = command) {
+  return run('gcloud', ['artifacts', 'docker', ...args, '--project=' + settings.project, '--quiet'], options);
+}
+
+function assertAvailableRunTag(output, image, tag) {
+  const invalid = () => new Error('Invalid or incomplete registry tag listing; stop before publishing.');
+  let rows;
+  try { rows = JSON.parse(output); } catch { throw invalid(); }
+  if (!Array.isArray(rows)) throw invalid();
+  const repository = 'projects/' + settings.project + '/locations/' + settings.region +
+    '/repositories/' + settings.registry.split('/')[2];
+  const seen = new Set();
+  let collision = false;
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' || Array.isArray(row) ||
+        Object.keys(row).sort().join(',') !== 'image,tag,version' ||
+        typeof row.image !== 'string' || typeof row.tag !== 'string' || typeof row.version !== 'string' ||
+        !row.image.startsWith(settings.registry + '/') ||
+        [row.image, row.tag, row.version].some(value => /\s/.test(value))) throw invalid();
+    const imagePath = row.image.slice(settings.registry.length + 1);
+    if (!imagePath.split('/').every(part => /^[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*$/.test(part))) throw invalid();
+    const packageName = repository + '/packages/' + imagePath.replaceAll('/', '%2F');
+    const tagPrefix = packageName + '/tags/';
+    const versionPrefix = packageName + '/versions/';
+    if (!row.tag.startsWith(tagPrefix) || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(row.tag.slice(tagPrefix.length)) ||
+        !row.version.startsWith(versionPrefix) || !digestPattern.test(row.version.slice(versionPrefix.length)) ||
+        seen.has(row.tag)) throw invalid();
+    seen.add(row.tag);
+    if (row.image === image && row.tag === tagPrefix + tag) collision = true;
+  }
+  if (collision) throw new Error('Refusing to overwrite an existing run tag.');
+}
+
+export function publishImage(name, context, run = command) {
+  const image = settings.registry + '/' + name;
+  const tag = image + ':' + context.tag;
+  // Verified offline against Cloud SDK 594.0.0:
+  // surface/artifacts/docker/tags/list.py -> command_lib/artifacts/docker_util.py
+  // ListDockerTags emits [{image: Docker URL, tag: full tag resource, version: full version resource}].
+  // requests.ListPackages/ListTags exhaust the SDK pager before returning. Do not add
+  // --limit, --filter or a format projection: absence requires the complete listing.
+  assertAvailableRunTag(artifact(['tags', 'list', settings.registry, '--format=json'], undefined, run), image, context.tag);
+  assertCurrentMain(context.sha, () => run('git', ['ls-remote', 'origin', 'refs/heads/main']).split(/\s/)[0]);
+  run('docker', ['push', tag]);
+  const digest = artifact(['images', 'describe', tag, '--format=value(image_summary.digest)'], undefined, run);
+  if (!digestPattern.test(digest)) throw new Error('Registry did not return a valid digest.');
+  return image + '@' + digest;
 }
 const outputDirectory = path.join(workspace, '.local', 'release');
 function save(name, value) {
@@ -209,15 +257,7 @@ export async function main(mode, env = process.env) {
       { input: env.CLOUDSDK_AUTH_ACCESS_TOKEN + '\n' });
     const images = {};
     for (const { name } of targets) {
-      const tag = settings.registry + '/' + name + ':' + context.tag;
-      if (artifact(['images', 'describe', tag, '--format=value(image_summary.digest)'], { allowMissing: true }) !== null) {
-        throw new Error('Refusing to overwrite an existing run tag.');
-      }
-      assertCurrentMain(context.sha);
-      command('docker', ['push', tag]);
-      const digest = artifact(['images', 'describe', tag, '--format=value(image_summary.digest)']);
-      if (!digestPattern.test(digest)) throw new Error('Registry did not return a valid digest.');
-      images[name] = settings.registry + '/' + name + '@' + digest;
+      images[name] = publishImage(name, context);
       save('images.json', { sha: context.sha, tag: context.tag, images });
       console.log(name + ': ' + images[name]);
     }
