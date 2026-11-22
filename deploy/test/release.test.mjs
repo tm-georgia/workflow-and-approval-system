@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { parse } from '../token-helper/node_modules/yaml/dist/index.js';
 import { releaseContext, targets, verifiedImages, manifest, checkInvoker, serviceSnapshot, readyRevision,
-  assertCurrentMain, assertServiceConfiguration, guardedReplacement, smoke, settings, command, publishImage } from '../release.mjs';
+  assertCurrentMain, assertServiceConfiguration, guardedReplacement, smoke, settings, command, publishImage,
+  resolvePlatformImage, verifiedRevision, registryReader } from '../release.mjs';
 
 const sha = 'a'.repeat(40);
 const env = { GITHUB_REPOSITORY: 'tm-georgia/workflow-and-approval-system', GITHUB_REF: 'refs/heads/main',
@@ -203,6 +206,271 @@ test('publish guard preserves current-main and digest checks and stops after any
       assert.deepEqual(io.calls.map(({ operation }) => operation), ['list', 'main', 'push', 'describe']);
     });
   }
+});
+
+const ociImage = 'application/vnd.oci.image.manifest.v1+json';
+const ociIndex = 'application/vnd.oci.image.index.v1+json';
+const dockerImage = 'application/vnd.docker.distribution.manifest.v2+json';
+const dockerIndex = 'application/vnd.docker.distribution.manifest.list.v2+json';
+function packedManifest(document) {
+  const raw = JSON.stringify(document);
+  return { raw, digest: 'sha256:' + createHash('sha256').update(raw).digest('hex'), size: Buffer.byteLength(raw) };
+}
+function registryFixture({ name = 'backend', index = true, docker = false, attestation = false,
+  mutateChild = () => {}, mutateIndex = () => {} } = {}) {
+  const childDocument = { schemaVersion: 2, mediaType: docker ? dockerImage : ociImage,
+    config: { mediaType: docker ? 'application/vnd.docker.container.image.v1+json' : 'application/vnd.oci.image.config.v1+json',
+      digest: 'sha256:' + '1'.repeat(64), size: 123 },
+    layers: [{ mediaType: docker ? 'application/vnd.docker.image.rootfs.diff.tar.gzip' : 'application/vnd.oci.image.layer.v1.tar+gzip',
+      digest: 'sha256:' + '2'.repeat(64), size: 456 }] };
+  mutateChild(childDocument);
+  const child = packedManifest(childDocument);
+  const descriptors = [{ mediaType: childDocument.mediaType, digest: child.digest, size: child.size, platform: { os: 'linux', architecture: 'amd64' } }];
+  if (attestation) descriptors.push({ mediaType: ociImage, digest: 'sha256:' + '3'.repeat(64), size: 564,
+    platform: { os: 'unknown', architecture: 'unknown' }, annotations: {
+      'vnd.docker.reference.type': 'attestation-manifest', 'vnd.docker.reference.digest': child.digest } });
+  const parentDocument = { schemaVersion: 2, mediaType: docker ? dockerIndex : ociIndex, manifests: descriptors };
+  mutateIndex(parentDocument);
+  const parent = index ? packedManifest(parentDocument) : child;
+  const prefix = settings.registry + '/' + name + '@';
+  const image = prefix + parent.digest, platformImage = prefix + child.digest;
+  const raw = new Map([[image, parent.raw], [platformImage, child.raw]]);
+  const calls = [];
+  const run = (binary, args, options) => {
+    calls.push({ binary, args, options });
+    assert.equal(binary, 'docker');
+    assert.deepEqual(args.slice(0, 4), ['buildx', 'imagetools', 'inspect', '--raw']);
+    assert.equal(options.trim, false);
+    assert.ok(raw.has(args[4]), 'Only fixture registry reads may execute');
+    return raw.get(args[4]) + '\n';
+  };
+  return { image, platformImage, parent, child, raw, calls, run };
+}
+const provenanceMessage = 'Ready revision provenance mismatch; stop and inspect rollback.json.';
+function rejectsProvenance(action) {
+  assert.throws(action, error => {
+    assert.equal(error.message, provenanceMessage);
+    assert.equal(error.cause, undefined);
+    assert.ok(!error.stack.includes('SENSITIVE_TOKEN_DO_NOT_EXPOSE'));
+    return true;
+  });
+}
+
+test('OCI provenance resolves direct manifests and unique platform children in exact approved packages', async t => {
+  for (const { name } of targets) {
+    for (const options of [{ index: false }, {}, { attestation: true }, { docker: true }, { docker: true, index: false }]) {
+      await t.test(name + ' ' + JSON.stringify(options), () => {
+        const f = registryFixture({ name, ...options });
+        assert.equal(resolvePlatformImage(name, f.image, f.run), f.platformImage);
+        assert.deepEqual(f.calls.map(call => call.args[4]), options.index === false ? [f.image] : [f.image, f.platformImage]);
+        assert.ok(f.calls.every(call => call.args[4].startsWith(settings.registry + '/' + name + '@sha256:')));
+      });
+    }
+  }
+  await t.test('other platform is not a competing AMD64 image', () => {
+    const f = registryFixture({ mutateIndex: doc => doc.manifests.push({ ...doc.manifests[0], digest: 'sha256:' + '4'.repeat(64),
+      platform: { os: 'linux', architecture: 'arm64', variant: 'v8' } }) });
+    assert.equal(resolvePlatformImage('backend', f.image, f.run), f.platformImage);
+  });
+  await t.test('exact raw bytes are retained, including manifest whitespace', () => {
+    const f = registryFixture({ index: false });
+    const raw = ' \n' + f.child.raw + '\n';
+    const digest = 'sha256:' + createHash('sha256').update(raw).digest('hex');
+    const image = settings.registry + '/backend@' + digest;
+    assert.equal(resolvePlatformImage('backend', image, () => raw + '\n'), image);
+    assert.equal(command('docker', [], { trim: false }, () => ({ status: 0, stdout: raw })), raw);
+  });
+});
+
+test('OCI provenance registry reads reuse publish authentication only in child processes', () => {
+  const f = registryFixture();
+  const runnerTemp = path.resolve('mock-runner-temp');
+  const envBefore = process.env.DOCKER_CONFIG;
+  const inputEnv = { RUNNER_TEMP: runnerTemp, DOCKER_CONFIG: 'unrelated-config' };
+  let calls = 0;
+  const run = registryReader(inputEnv, (binary, args, options) => {
+    calls++;
+    assert.deepEqual(options.env, { DOCKER_CONFIG: path.join(runnerTemp, 'lab5-docker') });
+    return command(binary, args, options, (_binary, _args, processOptions) => {
+      assert.equal(processOptions.env.DOCKER_CONFIG, path.join(runnerTemp, 'lab5-docker'));
+      assert.equal(processOptions.windowsHide, true);
+      assert.equal(processOptions.encoding, 'utf8');
+      return { status: 0, stdout: f.raw.get(args[4]) + '\n' };
+    });
+  });
+  assert.equal(resolvePlatformImage('backend', f.image, run), f.platformImage);
+  assert.equal(calls, 2);
+  assert.equal(inputEnv.DOCKER_CONFIG, 'unrelated-config');
+  assert.equal(process.env.DOCKER_CONFIG, envBefore);
+  for (const RUNNER_TEMP of [undefined, '', 'relative/path']) rejectsProvenance(() => registryReader({ RUNNER_TEMP }));
+  const workflow = parse(readFileSync(new URL('../../.github/workflows/deploy.yml', import.meta.url), 'utf8'));
+  assert.equal(workflow.jobs.deploy.steps.find(step => step.name === 'Upload immutable images').env.DOCKER_CONFIG,
+    '${{ runner.temp }}/lab5-docker');
+});
+
+test('OCI provenance rejects missing, duplicate, ambiguous, malformed and attestation platform entries', async t => {
+  const cases = [
+    ['missing AMD64', doc => { doc.manifests[0].platform.architecture = 'arm64'; }],
+    ['empty listing', doc => { doc.manifests = []; }],
+    ['missing listing', doc => { delete doc.manifests; }],
+    ['listing wrapper', doc => { doc.manifests = { items: doc.manifests }; }],
+    ['duplicate descriptor', doc => { doc.manifests.push(structuredClone(doc.manifests[0])); }],
+    ['competing child', doc => { doc.manifests.push({ ...doc.manifests[0], digest: 'sha256:' + '4'.repeat(64) }); }],
+    ['nested index', doc => { doc.manifests[0].mediaType = ociIndex; }],
+    ['unsupported parent', doc => { doc.mediaType = 'application/unknown'; }],
+    ['wrong schema', doc => { doc.schemaVersion = 1; }],
+    ['mixed manifest/index', doc => { doc.layers = []; }],
+    ['incomplete paginated response', doc => { doc.nextPageToken = 'SENSITIVE_TOKEN_DO_NOT_EXPOSE'; }],
+    ['null descriptor', doc => { doc.manifests.push(null); }],
+    ...['platform', 'digest', 'size', 'mediaType'].map(key => ['missing ' + key, doc => { delete doc.manifests[0][key]; }]),
+    ['null platform', doc => { doc.manifests[0].platform = null; }],
+    ['array platform', doc => { doc.manifests[0].platform = []; }],
+    ['missing architecture', doc => { delete doc.manifests[0].platform.architecture; }],
+    ['non-string architecture', doc => { doc.manifests[0].platform.architecture = 123; }],
+    ['platform whitespace', doc => { doc.manifests[0].platform.os = 'linux\n'; }],
+    ['malformed additional platform', doc => { doc.manifests.push({ ...doc.manifests[0], digest: 'sha256:' + '4'.repeat(64),
+      platform: { os: 'linux\n', architecture: 'arm64' } }); }],
+    ['unexpected platform variant', doc => { doc.manifests[0].platform.variant = 'v3'; }],
+    ['unexpected platform features', doc => { doc.manifests[0].platform['os.features'] = []; }],
+    ['unexpected platform field', doc => { doc.manifests[0].platform.url = 'other.example'; }],
+    ['invalid size', doc => { doc.manifests[0].size = '2005'; }],
+    ['negative size', doc => { doc.manifests[0].size = -1; }],
+    ['incorrect child size', doc => { doc.manifests[0].size++; }],
+    ['incorrect child media type', doc => { doc.manifests[0].mediaType = dockerImage; }],
+    ['invalid child digest', doc => { doc.manifests[0].digest = 'sha256:' + 'a'.repeat(64) + '\n'; }],
+    ['external descriptor URL', doc => { doc.manifests[0].urls = ['https://other.example']; }],
+    ['inline descriptor', doc => { doc.manifests[0].data = 'untrusted'; }],
+    ['invalid annotations', doc => { doc.manifests[0].annotations = { secret: {} }; }],
+    ['attestation masquerading as image', doc => { doc.manifests[0].annotations = { 'vnd.docker.reference.type': 'attestation-manifest' }; }],
+    ['unknown platform without attestation', doc => { doc.manifests[0].platform = { os: 'unknown', architecture: 'unknown' }; }],
+    ['mixed unknown platform', doc => { doc.manifests[0].platform.architecture = 'unknown'; }],
+  ];
+  for (const [label, mutateIndex] of cases) await t.test(label, () => {
+    const f = registryFixture({ mutateIndex });
+    rejectsProvenance(() => resolvePlatformImage('backend', f.image, f.run));
+  });
+  for (const [label, mutate] of [
+    ['dangling attestation', entry => { entry.annotations['vnd.docker.reference.digest'] = 'sha256:' + 'f'.repeat(64); }],
+    ['untyped attestation', entry => { delete entry.annotations['vnd.docker.reference.type']; }],
+    ['attestation cannot replace AMD64', entry => { entry.platform = { os: 'linux', architecture: 'amd64' }; }],
+  ]) await t.test(label, () => {
+    const f = registryFixture({ attestation: true, mutateIndex: doc => mutate(doc.manifests[1]) });
+    rejectsProvenance(() => resolvePlatformImage('backend', f.image, f.run));
+  });
+});
+
+test('OCI provenance fails closed on malformed image manifests, digest mismatches and registry/process failures', async t => {
+  for (const [label, mutateChild] of [
+    ['missing config', doc => { delete doc.config; }], ['missing layers', doc => { delete doc.layers; }],
+    ['wrong config media type', doc => { doc.config.mediaType = 'application/unknown'; }],
+    ['wrong layer media type', doc => { doc.layers[0].mediaType = 'application/vnd.in-toto+json'; }],
+    ['wrong layer digest', doc => { doc.layers[0].digest = 'latest'; }],
+    ['wrong layer size', doc => { doc.layers[0].size = null; }],
+    ['nested manifest', doc => { doc.manifests = []; }],
+    ['artifact instead of image', doc => { doc.artifactType = 'application/example'; }],
+  ]) await t.test(label, () => {
+    const f = registryFixture({ mutateChild });
+    rejectsProvenance(() => resolvePlatformImage('backend', f.image, f.run));
+  });
+  const sensitive = 'SENSITIVE_TOKEN_DO_NOT_EXPOSE';
+  for (const output of ['', '{' + sensitive, '{}', '[]', 'null', '{"schemaVersion":2}', JSON.stringify({ schemaVersion: 2, mediaType: 'application/unknown' })]) {
+    await t.test('invalid response ' + output.length, () => {
+      const ref = settings.registry + '/backend@sha256:' + createHash('sha256').update(output).digest('hex');
+      rejectsProvenance(() => resolvePlatformImage('backend', ref, () => output));
+    });
+  }
+  for (const part of ['parent', 'child']) await t.test(part + ' wrong bytes despite valid JSON', () => {
+    const f = registryFixture(); f.raw.set(part === 'parent' ? f.image : f.platformImage, registryFixture({ index: false }).child.raw + ' ');
+    rejectsProvenance(() => resolvePlatformImage('backend', f.image, f.run));
+  });
+  await t.test('unrelated descriptor cannot authorize the running image', () => {
+    const f = registryFixture({ mutateIndex: doc => { doc.manifests[0].digest = 'sha256:' + 'f'.repeat(64); } });
+    rejectsProvenance(() => resolvePlatformImage('backend', f.image, f.run));
+  });
+  for (const stage of ['parent', 'child']) for (const result of [
+    { status: 1, stdout: '{}', stderr: 'UNAUTHENTICATED ' + sensitive },
+    { status: 1, stdout: '{}', stderr: 'PERMISSION_DENIED ' + sensitive },
+    { status: 1, stdout: '', stderr: '404 missing manifest ' + sensitive },
+    { status: 1, stdout: '', stderr: 'DNS/network/503 ' + sensitive },
+    { status: null, signal: 'SIGTERM', stdout: '{}' },
+    { status: 0, error: new Error(sensitive), stdout: '{}' },
+    () => { throw new Error(sensitive); },
+  ]) await t.test(stage + ' command failure', () => {
+    const f = registryFixture();
+    const run = (binary, args, options) => command(binary, args, options, () => {
+      if (stage === 'parent' || args[4] === f.platformImage) return typeof result === 'function' ? result() : result;
+      return { status: 0, stdout: f.raw.get(args[4]) };
+    });
+    rejectsProvenance(() => resolvePlatformImage('backend', f.image, run));
+  });
+  for (const ref of ['other.example/backend@sha256:' + 'a'.repeat(64), images.frontend, images.backend + '\n',
+    settings.registry + '/backend:latest', images.backend.replace('/backend@', '/backend-extra@')]) await t.test('wrong package/reference', () => {
+    rejectsProvenance(() => resolvePlatformImage('backend', ref, () => assert.fail('Must reject before registry read')));
+  });
+});
+
+function revisionFixture(kind = 'backend') {
+  const service = existingService(kind);
+  const revisionName = service.status.traffic[0].revisionName;
+  service.status.latestReadyRevisionName = revisionName;
+  service.status.latestCreatedRevisionName = revisionName;
+  const published = { ...images }, platformImages = { ...images }, registries = [];
+  for (const name of kind === 'backend' ? ['backend'] : ['frontend', 'token-helper']) {
+    const f = registryFixture({ name, attestation: true }); registries.push(f);
+    published[name] = f.image; platformImages[name] = resolvePlatformImage(name, f.image, f.run);
+  }
+  for (const container of service.spec.template.spec.containers) container.image = published[container.name === 'nginx' ? 'frontend' : container.name];
+  const spec = structuredClone(service.spec.template.spec);
+  for (const container of spec.containers) container.image = platformImages[container.name === 'nginx' ? 'frontend' : container.name];
+  const revision = { metadata: { name: revisionName, labels: { 'release-sha': sha } }, spec,
+    status: { conditions: [{ type: 'Ready', status: 'True' }], containerStatuses: spec.containers.map(c => ({ name: c.name, imageDigest: c.image })) } };
+  if (kind === 'backend') revision.status.imageDigest = platformImages.backend;
+  return { service, revision, published, platformImages, registries };
+}
+test('OCI provenance verifies configured parents and actual serving children for backend and both frontend containers', async t => {
+  for (const kind of ['backend', 'frontend']) await t.test(kind, () => {
+    const f = revisionFixture(kind);
+    const after = verifiedRevision(f.service, f.revision, kind, f.published, f.platformImages, context);
+    assert.deepEqual(after.images, f.revision.spec.containers.map(c => ({ name: c.name, image: c.image })));
+    assert.doesNotThrow(() => assertServiceConfiguration(f.service, kind, f.published, context));
+    const originalService = structuredClone(f.service);
+    // Rollback snapshots must still capture the actual traffic-serving child images.
+    assert.deepEqual(readyRevision(f.revision, serviceSnapshot(f.service, kind), kind).images, after.images);
+    assert.deepEqual(f.service, originalService);
+  });
+});
+test('OCI provenance rejects incorrect configuration, release labels, runtime images, traffic and revision state', async t => {
+  const cases = [
+    ['wrong label', f => { f.revision.metadata.labels['release-sha'] = 'c'.repeat(40); }],
+    ['missing label', f => { delete f.revision.metadata.labels; }],
+    ['wrong configured image', f => { f.service.spec.template.spec.containers[0].image = f.platformImages.backend; }],
+    ['wrong runtime image', f => { f.revision.spec.containers[0].image = images.backend; }],
+    ['index reference cannot stand in for resolved child', f => { f.revision.spec.containers[0].image = f.published.backend; }],
+    ['wrong runtime status digest', f => { f.revision.status.containerStatuses[0].imageDigest = images.backend; }],
+    ['wrong primary digest', f => { f.revision.status.imageDigest = images.backend; }],
+    ['missing status images', f => { delete f.revision.status.containerStatuses; }],
+    ['not ready', f => { f.revision.status.conditions[0].status = 'False'; }],
+    ['wrong revision identity', f => { f.revision.metadata.name = 'other'; }],
+    ['wrong runtime identity', f => { f.revision.spec.serviceAccountName = 'unexpected@example.test'; }],
+    ['split traffic', f => { f.service.status.traffic[0].percent = 50; }],
+    ['older serving revision', f => { f.service.status.latestReadyRevisionName = 'newer'; }],
+    ['newer pending revision', f => { f.service.status.latestCreatedRevisionName = 'newer'; }],
+    ['duplicate containers', f => { f.revision.spec.containers.push(f.revision.spec.containers[0]); }],
+    ['duplicate status', f => { f.revision.status.containerStatuses.push(f.revision.status.containerStatuses[0]); }],
+    ['unexpected configured container', f => { f.service.spec.template.spec.containers.push({ name: 'extra', image: images.backend }); }],
+    ['wrong resolved package', f => { f.platformImages.backend = f.revision.spec.containers[0].image = f.revision.status.imageDigest =
+      f.revision.status.containerStatuses[0].imageDigest = images.frontend; }],
+  ];
+  for (const [label, mutate] of cases) await t.test(label, () => {
+    const f = revisionFixture(); mutate(f);
+    rejectsProvenance(() => verifiedRevision(f.service, f.revision, 'backend', f.published, f.platformImages, context));
+  });
+  for (const container of ['nginx', 'token-helper']) for (const field of ['configured', 'revision', 'status']) await t.test(container + ' wrong ' + field, () => {
+    const f = revisionFixture('frontend');
+    const rows = field === 'configured' ? f.service.spec.template.spec.containers : field === 'revision' ? f.revision.spec.containers : f.revision.status.containerStatuses;
+    rows.find(c => c.name === container)[field === 'status' ? 'imageDigest' : 'image'] = images.backend;
+    rejectsProvenance(() => verifiedRevision(f.service, f.revision, 'frontend', f.published, f.platformImages, context));
+  });
 });
 
 test('only full-SHA main push/manual releases with pinned secret versions are accepted', () => {
