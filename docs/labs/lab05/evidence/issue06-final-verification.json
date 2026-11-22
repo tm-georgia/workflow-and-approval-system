@@ -1,0 +1,439 @@
+{
+  "verified_at": "2026-11-22T12:40:59.618411+07:00",
+  "repository": "tm-georgia/workflow-and-approval-system",
+  "scope": "Read-only verification; no settings, IAM or GCP changes; no repeat demonstrations. API evidence does not replace a settings screenshot.",
+  "worktrees": {
+    "issue6": {
+      "path": ".",
+      "branch": "docs/lab5-issue-6-evidence",
+      "synchronized_staging_sha": "ff8bf017d170dac5b9bdaa84ba14c876f5324ecb"
+    },
+    "issue7": {
+      "path": ".local/worktrees/lab5-issue-7-8",
+      "branch": "feature/lab5-issue-7-8-cd",
+      "isolation": "Separate worktree verified; no branch, index or files changed by this task."
+    }
+  },
+  "branches": {
+    "main": "ef521b600b3548449487df7eeda5f5cea076c4a1",
+    "sprint-staging": "ff8bf017d170dac5b9bdaa84ba14c876f5324ecb"
+  },
+  "gates": {
+    "main": {
+      "ruleset_api": "https://api.github.com/repos/tm-georgia/workflow-and-approval-system/rulesets/27825087",
+      "effective_rules_api": "https://api.github.com/repos/tm-georgia/workflow-and-approval-system/rules/branches/main",
+      "saved_ruleset": {
+        "id": 27825087,
+        "name": "Lab 5 - Main Quality Gate",
+        "target": "branch",
+        "source_type": "Repository",
+        "source": "tm-georgia/workflow-and-approval-system",
+        "enforcement": "active",
+        "conditions": {
+          "ref_name": {
+            "exclude": [],
+            "include": [
+              "~DEFAULT_BRANCH"
+            ]
+          }
+        },
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "pull_request",
+            "parameters": {
+              "required_approving_review_count": 1,
+              "dismiss_stale_reviews_on_push": true,
+              "required_reviewers": [],
+              "require_code_owner_review": false,
+              "require_last_push_approval": false,
+              "required_review_thread_resolution": true,
+              "require_extra_approval_for_unattributed_changes": true,
+              "allowed_merge_methods": [
+                "merge",
+                "squash",
+                "rebase"
+              ]
+            }
+          },
+          {
+            "type": "required_status_checks",
+            "parameters": {
+              "strict_required_status_checks_policy": true,
+              "do_not_enforce_on_create": false,
+              "required_status_checks": [
+                {
+                  "context": "Client Tests and Build",
+                  "integration_id": 15368
+                },
+                {
+                  "context": "Server Tests and Build",
+                  "integration_id": 15368
+                },
+                {
+                  "context": "Private Backend Proxy Checks",
+                  "integration_id": 15368
+                }
+              ]
+            }
+          },
+          {
+            "type": "non_fast_forward"
+          }
+        ],
+        "node_id": "RRS_lACqUmVwb3NpdG9yec5WVzd3zgGok78",
+        "created_at": "2026-11-22T10:45:10.577+07:00",
+        "updated_at": "2026-11-22T12:23:24.162+07:00",
+        "current_user_can_bypass": "never",
+        "_links": {
+          "self": {
+            "href": "https://api.github.com/repos/tm-georgia/workflow-and-approval-system/rulesets/27825087"
+          },
+          "html": {
+            "href": "https://github.com/tm-georgia/workflow-and-approval-system/rules/27825087"
+          }
+        }
+      },
+      "effective_rules": [
+        {
+          "type": "deletion",
+          "ruleset_source_type": "Repository",
+          "ruleset_source": "tm-georgia/workflow-and-approval-system",
+          "ruleset_id": 27825087
+        },
+        {
+          "type": "pull_request",
+          "parameters": {
+            "required_approving_review_count": 1,
+            "dismiss_stale_reviews_on_push": true,
+            "required_reviewers": [],
+            "require_code_owner_review": false,
+            "require_last_push_approval": false,
+            "required_review_thread_resolution": true,
+            "require_extra_approval_for_unattributed_changes": true,
+            "allowed_merge_methods": [
+              "merge",
+              "squash",
+              "rebase"
+            ]
+          },
+          "ruleset_source_type": "Repository",
+          "ruleset_source": "tm-georgia/workflow-and-approval-system",
+          "ruleset_id": 27825087
+        },
+        {
+          "type": "required_status_checks",
+          "parameters": {
+            "strict_required_status_checks_policy": true,
+            "do_not_enforce_on_create": false,
+            "required_status_checks": [
+              {
+                "context": "Client Tests and Build",
+                "integration_id": 15368
+              },
+              {
+                "context": "Server Tests and Build",
+                "integration_id": 15368
+              },
+              {
+                "context": "Private Backend Proxy Checks",
+                "integration_id": 15368
+              }
+            ]
+          },
+          "ruleset_source_type": "Repository",
+          "ruleset_source": "tm-georgia/workflow-and-approval-system",
+          "ruleset_id": 27825087
+        },
+        {
+          "type": "non_fast_forward",
+          "ruleset_source_type": "Repository",
+          "ruleset_source": "tm-georgia/workflow-and-approval-system",
+          "ruleset_id": 27825087
+        }
+      ],
+      "bypass_actor_count": 0
+    },
+    "staging": {
+      "ruleset_api": "https://api.github.com/repos/tm-georgia/workflow-and-approval-system/rulesets/27825271",
+      "effective_rules_api": "https://api.github.com/repos/tm-georgia/workflow-and-approval-system/rules/branches/sprint-staging",
+      "saved_ruleset": {
+        "id": 27825271,
+        "name": "Lab 5 - Staging Quality Gate",
+        "target": "branch",
+        "source_type": "Repository",
+        "source": "tm-georgia/workflow-and-approval-system",
+        "enforcement": "active",
+        "conditions": {
+          "ref_name": {
+            "exclude": [],
+            "include": [
+              "refs/heads/sprint-staging"
+            ]
+          }
+        },
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "pull_request",
+            "parameters": {
+              "required_approving_review_count": 1,
+              "dismiss_stale_reviews_on_push": true,
+              "required_reviewers": [],
+              "require_code_owner_review": false,
+              "require_last_push_approval": false,
+              "required_review_thread_resolution": true,
+              "require_extra_approval_for_unattributed_changes": true,
+              "allowed_merge_methods": [
+                "merge",
+                "squash",
+                "rebase"
+              ]
+            }
+          },
+          {
+            "type": "required_status_checks",
+            "parameters": {
+              "strict_required_status_checks_policy": true,
+              "do_not_enforce_on_create": false,
+              "required_status_checks": [
+                {
+                  "context": "Client Tests and Build",
+                  "integration_id": 15368
+                },
+                {
+                  "context": "Server Tests and Build",
+                  "integration_id": 15368
+                },
+                {
+                  "context": "Private Backend Proxy Checks",
+                  "integration_id": 15368
+                }
+              ]
+            }
+          },
+          {
+            "type": "non_fast_forward"
+          }
+        ],
+        "node_id": "RRS_lACqUmVwb3NpdG9yec5WVzd3zgGolHc",
+        "created_at": "2026-11-22T10:57:00.569+07:00",
+        "updated_at": "2026-11-22T10:57:00.738+07:00",
+        "current_user_can_bypass": "never",
+        "_links": {
+          "self": {
+            "href": "https://api.github.com/repos/tm-georgia/workflow-and-approval-system/rulesets/27825271"
+          },
+          "html": {
+            "href": "https://github.com/tm-georgia/workflow-and-approval-system/rules/27825271"
+          }
+        }
+      },
+      "effective_rules": [
+        {
+          "type": "deletion",
+          "ruleset_source_type": "Repository",
+          "ruleset_source": "tm-georgia/workflow-and-approval-system",
+          "ruleset_id": 27825271
+        },
+        {
+          "type": "pull_request",
+          "parameters": {
+            "required_approving_review_count": 1,
+            "dismiss_stale_reviews_on_push": true,
+            "required_reviewers": [],
+            "require_code_owner_review": false,
+            "require_last_push_approval": false,
+            "required_review_thread_resolution": true,
+            "require_extra_approval_for_unattributed_changes": true,
+            "allowed_merge_methods": [
+              "merge",
+              "squash",
+              "rebase"
+            ]
+          },
+          "ruleset_source_type": "Repository",
+          "ruleset_source": "tm-georgia/workflow-and-approval-system",
+          "ruleset_id": 27825271
+        },
+        {
+          "type": "required_status_checks",
+          "parameters": {
+            "strict_required_status_checks_policy": true,
+            "do_not_enforce_on_create": false,
+            "required_status_checks": [
+              {
+                "context": "Client Tests and Build",
+                "integration_id": 15368
+              },
+              {
+                "context": "Server Tests and Build",
+                "integration_id": 15368
+              },
+              {
+                "context": "Private Backend Proxy Checks",
+                "integration_id": 15368
+              }
+            ]
+          },
+          "ruleset_source_type": "Repository",
+          "ruleset_source": "tm-georgia/workflow-and-approval-system",
+          "ruleset_id": 27825271
+        },
+        {
+          "type": "non_fast_forward",
+          "ruleset_source_type": "Repository",
+          "ruleset_source": "tm-georgia/workflow-and-approval-system",
+          "ruleset_id": 27825271
+        }
+      ],
+      "bypass_actor_count": 0
+    }
+  },
+  "issue27": {
+    "url": "https://github.com/tm-georgia/workflow-and-approval-system/issues/27",
+    "state": "open",
+    "labels": [
+      "lab5"
+    ],
+    "project_board": "UNVERIFIED: GraphQL INSUFFICIENT_SCOPES for read:project; browser access host unavailable. Authorization was not broadened."
+  },
+  "reviews": {
+    "28": {
+      "reviews": [
+        {
+          "author": "tm-georgia",
+          "state": "APPROVED",
+          "body": "Your work looks pretty fine.",
+          "commit_sha": "606454da6fbf617ca694ec9036f612102d4cf312",
+          "url": "https://github.com/tm-georgia/workflow-and-approval-system/pull/28#pullrequestreview-6010230789"
+        }
+      ],
+      "inline_comments": [],
+      "discussion_comments": []
+    },
+    "30": {
+      "reviews": [
+        {
+          "author": "tm-georgia",
+          "state": "APPROVED",
+          "body": "",
+          "commit_sha": "ff8bf017d170dac5b9bdaa84ba14c876f5324ecb",
+          "url": "https://github.com/tm-georgia/workflow-and-approval-system/pull/30#pullrequestreview-6010469461"
+        }
+      ],
+      "inline_comments": [],
+      "discussion_comments": []
+    }
+  },
+  "historical_runs": {
+    "44980098231": {
+      "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44980098231",
+      "head_sha": "606454da6fbf617ca694ec9036f612102d4cf312",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 137078514314,
+          "name": "Server Tests and Build",
+          "conclusion": "success",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44980098231/job/137078514314"
+        },
+        {
+          "id": 137078514462,
+          "name": "Client Tests and Build",
+          "conclusion": "success",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44980098231/job/137078514462"
+        },
+        {
+          "id": 137078514512,
+          "name": "Private Backend Proxy Checks",
+          "conclusion": "success",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44980098231/job/137078514512"
+        }
+      ]
+    },
+    "44986998293": {
+      "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44986998293",
+      "head_sha": "ff8bf017d170dac5b9bdaa84ba14c876f5324ecb",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 137099635455,
+          "name": "Client Tests and Build",
+          "conclusion": "success",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44986998293/job/137099635455"
+        },
+        {
+          "id": 137099635614,
+          "name": "Server Tests and Build",
+          "conclusion": "success",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44986998293/job/137099635614"
+        },
+        {
+          "id": 137099635632,
+          "name": "Private Backend Proxy Checks",
+          "conclusion": "success",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44986998293/job/137099635632"
+        }
+      ]
+    },
+    "44987606342": {
+      "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44987606342",
+      "head_sha": "ef521b600b3548449487df7eeda5f5cea076c4a1",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 137101499321,
+          "name": "authenticate",
+          "conclusion": "success",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44987606342/job/137101499321"
+        }
+      ]
+    },
+    "44984116918": {
+      "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44984116918",
+      "head_sha": "a41dfcd4fb9643ca5273a41ad441216071f4e7df",
+      "conclusion": "failure",
+      "run_attempt": 1,
+      "jobs": [
+        {
+          "id": 137090826839,
+          "name": "Client Tests and Build",
+          "conclusion": "failure",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44984116918/job/137090826839"
+        },
+        {
+          "id": 137090827042,
+          "name": "Server Tests and Build",
+          "conclusion": "success",
+          "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44984116918/job/137090827042"
+        }
+      ]
+    }
+  },
+  "screenshot_sha256": {
+    "docs/labs/lab05/evidence/01-cloud-run-services.png": "6c4da69e1b8f1297cde1d3bd97d0f769de470369e83b71ea7160096b33a5cafb",
+    "docs/labs/lab05/evidence/02-migration-jobs.png": "c92b4fed1191718165b4bf5b9f995c88e90fcd2663c20597392cbb7aaba61443",
+    "docs/labs/lab05/evidence/04-reviewer-dashboard.png": "14ce4db436e23d286e7537cf179215ab7ada057ae4ed882d19b17b5d94fd6141",
+    "docs/labs/lab05/evidence/05-requester-approved.png": "4d26a810a9b13abe772b60b718ebb643d1b340d86adbd95bee3e72a56c6ee546",
+    "docs/labs/lab05/evidence/07-c02-failed-test-summary.png": "db03617a4060d5dc36cb52badd076e86b44122c621e8aab67733beacdbde8488",
+    "docs/labs/lab05/evidence/08-c02-blocked-merge.png": "cac1115120dcb57483f03b56c4611b937f1775bb9128b228481d41f6604873c2",
+    "docs/labs/lab05/evidence/13-release-pr-main.png": "9096982cab531e0e65ad370f145695ecc9157b0ca615f3aaa85bc84f588e7bdb",
+    "docs/labs/lab05/evidence/14-gcp-authentication-success.png": "ec433ef16a276eb5f01a9d0bf8561ce0fc42b0704e0b88459a1899451c49f818"
+  },
+  "remaining_limitations": [
+    "R-09: PR #28 generic approval; PR #30 empty approval body; no substantive inline or discussion comments. Actual technical review or instructor acceptance remains required.",
+    "Project-board membership unverified due to access limitation.",
+    "Main/staging/WIF/IAM settings screenshots are absent; final Lab 5 PDF and any unverified human GCP access/Free Trial evidence remain pending.",
+    "Exposed demo-credential rotation remains pending before further demonstration use or handoff; no rotation performed.",
+    "Exact deployed-source equivalence remains unverified; promoting source into main does not prove immutable-image provenance.",
+    "The documentation PR requires teammate review/approval and remains unmerged; Issue #27 stays open."
+  ]
+}
