@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,17 +38,18 @@ export function releaseContext(env) {
     dbVersion: env.RUNTIME_DB_VERSION, jwtVersion: env.JWT_VERSION };
 }
 
-export function command(binary, args, { input } = {}, execute = spawnSync) {
+export function command(binary, args, { input, trim = true, env } = {}, execute = spawnSync) {
   let result;
   const failed = () => new Error('Release command failed. No later operations executed.');
   try {
-    result = execute(binary, args, { cwd: workspace, encoding: 'utf8', input, windowsHide: true });
+    result = execute(binary, args, { cwd: workspace, encoding: 'utf8', input, windowsHide: true,
+      ...(env === undefined ? {} : { env: { ...process.env, ...env } }) });
   } catch {
     throw failed();
   }
   // Never echo arguments, child output or process errors: they can contain secrets.
   if (!result || result.error || result.status !== 0 || result.signal != null || typeof result.stdout !== 'string') throw failed();
-  return result.stdout.trim();
+  return trim ? result.stdout.trim() : result.stdout;
 }
 const cloudArgs = ['--project=' + settings.project, '--region=' + settings.region, '--quiet'];
 function cloud(args, options) { return command('gcloud', [...args, ...cloudArgs], options); }
@@ -206,6 +208,126 @@ export function readyRevision(revision, snapshot, kind) {
   // Evidence and rollback must record the actual traffic-serving revision's images.
   return { ...snapshot, images: revision.spec.containers.map(container => ({ name: container.name, image: container.image })) };
 }
+
+const imageMedia = ['application/vnd.oci.image.manifest.v1+json', 'application/vnd.docker.distribution.manifest.v2+json'];
+const indexMedia = ['application/vnd.oci.image.index.v1+json', 'application/vnd.docker.distribution.manifest.list.v2+json'];
+const provenanceFailure = () => new Error('Ready revision provenance mismatch; stop and inspect rollback.json.');
+
+export function registryReader(env, run = command) {
+  if (typeof env.RUNNER_TEMP !== 'string' || !path.isAbsolute(env.RUNNER_TEMP)) throw provenanceFailure();
+  // deploy.yml sets DOCKER_CONFIG only on publish. Reuse that same directory
+  // for read-only child processes without changing credentials or global env.
+  const dockerConfig = path.join(env.RUNNER_TEMP, 'lab5-docker');
+  return (binary, args, options) => run(binary, args, { ...options, env: { DOCKER_CONFIG: dockerConfig } });
+}
+
+export function resolvePlatformImage(name, image, run = command) {
+  try {
+    const packageName = settings.registry + '/' + name;
+    const digest = image?.slice(packageName.length + 1);
+    const validDigest = value => typeof value === 'string' && value.length === 71 && digestPattern.test(value);
+    if (!targets.some(target => target.name === name) || !validDigest(digest) || image !== packageName + '@' + digest) throw provenanceFailure();
+    const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+    const descriptor = value => object(value) && validDigest(value.digest) && Number.isSafeInteger(value.size) && value.size > 0 &&
+      typeof value.mediaType === 'string' && !Object.hasOwn(value, 'urls') && !Object.hasOwn(value, 'data') &&
+      (value.annotations === undefined || (object(value.annotations) && Object.values(value.annotations).every(item => typeof item === 'string')));
+    const read = expected => {
+      // Uses the workflow's existing ephemeral Docker authentication; never changes it.
+      const output = run('docker', ['buildx', 'imagetools', 'inspect', '--raw', packageName + '@' + expected], { trim: false });
+      if (typeof output !== 'string') throw provenanceFailure();
+      // buildx appends one framing newline. Preserve all manifest bytes for hashing.
+      const bytes = [output, ...(output.endsWith('\n') ? [output.slice(0, -1)] : [])]
+        .find(value => 'sha256:' + createHash('sha256').update(value).digest('hex') === expected);
+      if (bytes === undefined) throw provenanceFailure();
+      const document = JSON.parse(bytes);
+      if (!object(document) || document.schemaVersion !== 2 ||
+          Object.keys(document).some(key => !['schemaVersion', 'mediaType', 'manifests', 'config', 'layers', 'annotations'].includes(key)) ||
+          (document.annotations !== undefined && (!object(document.annotations) ||
+            Object.values(document.annotations).some(value => typeof value !== 'string')))) throw provenanceFailure();
+      return { document, size: Buffer.byteLength(bytes) };
+    };
+    const validateImage = document => {
+      const oci = document.mediaType === imageMedia[0];
+      const layerMedia = oci
+        ? ['application/vnd.oci.image.layer.v1.tar', 'application/vnd.oci.image.layer.v1.tar+gzip', 'application/vnd.oci.image.layer.v1.tar+zstd']
+        : ['application/vnd.docker.image.rootfs.diff.tar', 'application/vnd.docker.image.rootfs.diff.tar.gzip'];
+      if (!imageMedia.includes(document.mediaType) || Object.hasOwn(document, 'manifests') ||
+          Object.hasOwn(document, 'artifactType') || Object.hasOwn(document, 'subject') || !descriptor(document.config) ||
+          document.config.mediaType !== (oci ? 'application/vnd.oci.image.config.v1+json' : 'application/vnd.docker.container.image.v1+json') ||
+          !Array.isArray(document.layers) || document.layers.some(layer => !descriptor(layer) || !layerMedia.includes(layer.mediaType))) throw provenanceFailure();
+    };
+    const parent = read(digest).document;
+    if (imageMedia.includes(parent.mediaType)) {
+      validateImage(parent);
+      return image;
+    }
+    if (!indexMedia.includes(parent.mediaType) || !Array.isArray(parent.manifests) || !parent.manifests.length ||
+        Object.hasOwn(parent, 'config') || Object.hasOwn(parent, 'layers') || Object.hasOwn(parent, 'subject') ||
+        Object.hasOwn(parent, 'artifactType')) throw provenanceFailure();
+    const seen = new Set();
+    const candidates = [], attestations = [], runnable = [];
+    for (const entry of parent.manifests) {
+      const platform = entry?.platform;
+      if (!descriptor(entry) || !imageMedia.includes(entry.mediaType) || seen.has(entry.digest) || !object(platform) ||
+          !['os', 'architecture'].every(key => typeof platform[key] === 'string' && !/\s/.test(platform[key]) && /^[a-z0-9][a-z0-9_.-]*$/.test(platform[key])) ||
+          Object.keys(platform).some(key => !['os', 'architecture', 'variant', 'os.version', 'os.features'].includes(key)) ||
+          ['variant', 'os.version'].some(key => platform[key] !== undefined && (typeof platform[key] !== 'string' || !platform[key] || /\s/.test(platform[key]))) ||
+          (platform['os.features'] !== undefined && (!Array.isArray(platform['os.features']) ||
+            platform['os.features'].some(item => typeof item !== 'string' || !item || /\s/.test(item))))) throw provenanceFailure();
+      seen.add(entry.digest);
+      const annotations = entry.annotations ?? {};
+      if (platform.os === 'unknown' || platform.architecture === 'unknown') {
+        if (platform.os !== 'unknown' || platform.architecture !== 'unknown' || Object.keys(platform).length !== 2 ||
+            entry.mediaType !== imageMedia[0] || annotations['vnd.docker.reference.type'] !== 'attestation-manifest' ||
+            !validDigest(annotations['vnd.docker.reference.digest'])) throw provenanceFailure();
+        attestations.push(entry);
+      } else {
+        if (annotations['vnd.docker.reference.type'] !== undefined || annotations['vnd.docker.reference.digest'] !== undefined) throw provenanceFailure();
+        runnable.push(entry);
+        if (platform.os === 'linux' && platform.architecture === 'amd64') {
+          if (Object.keys(platform).length !== 2) throw provenanceFailure();
+          candidates.push(entry);
+        }
+      }
+    }
+    if (candidates.length !== 1 || attestations.some(entry => !runnable.some(item => item.digest === entry.annotations['vnd.docker.reference.digest']))) throw provenanceFailure();
+    const selected = candidates[0];
+    const child = read(selected.digest);
+    if (child.size !== selected.size || child.document.mediaType !== selected.mediaType) throw provenanceFailure();
+    validateImage(child.document);
+    return packageName + '@' + selected.digest;
+  } catch {
+    // Registry output and process errors may contain credentials; never propagate them.
+    throw provenanceFailure();
+  }
+}
+
+export function verifiedRevision(service, revision, kind, images, platformImages, context) {
+  try {
+    const snapshot = serviceSnapshot(service, kind);
+    const after = readyRevision(revision, snapshot, kind);
+    const expected = kind === 'backend' ? { backend: 'backend' } : kind === 'frontend' ? { nginx: 'frontend', 'token-helper': 'token-helper' } : null;
+    if (!expected || service.status.latestReadyRevisionName !== snapshot.revision ||
+        service.status.latestCreatedRevisionName !== snapshot.revision || revision.metadata.labels?.['release-sha'] !== context.sha) throw provenanceFailure();
+    for (const name of Object.values(expected)) {
+      for (const reference of [images[name], platformImages[name]]) {
+        const prefix = settings.registry + '/' + name + '@';
+        if (typeof reference !== 'string' || !reference.startsWith(prefix) || reference.length !== prefix.length + 71 ||
+            !digestPattern.test(reference.slice(prefix.length))) throw provenanceFailure();
+      }
+    }
+    const statuses = revision.status.containerStatuses.map(row => ({ name: row.name, image: row.imageDigest }));
+    if (revision.status.imageDigest !== undefined && revision.status.imageDigest !== platformImages[kind]) throw provenanceFailure();
+    for (const [rows, references] of [[snapshot.images, images], [after.images, platformImages], [statuses, platformImages]]) {
+      if (rows.length !== Object.keys(expected).length || new Set(rows.map(row => row.name)).size !== rows.length ||
+          rows.some(row => !Object.hasOwn(expected, row.name) ||
+            typeof references[expected[row.name]] !== 'string' || row.image !== references[expected[row.name]])) throw provenanceFailure();
+    }
+    return after; // Keep actual serving image references in revision/rollback evidence.
+  } catch {
+    throw provenanceFailure();
+  }
+}
 export function checkInvoker(policy, kind) {
   const members = policy.bindings?.filter(binding => binding.role === 'roles/run.invoker').flatMap(binding => binding.members ?? []) ?? [];
   if (kind === 'backend' && (members.includes('allUsers') || members.includes('allAuthenticatedUsers') ||
@@ -265,6 +387,11 @@ export async function main(mode, env = process.env) {
     return;
   }
   const images = verifiedImages(load('images.json'), context);
+  // Resolve all application containers before changing either service. Each child
+  // is fetched from the exact approved package and bound to its parent by hash.
+  const readRegistry = registryReader(env);
+  const platformImages = Object.fromEntries(['backend', 'frontend', 'token-helper']
+    .map(name => [name, resolvePlatformImage(name, images[name], readRegistry)]));
   const before = {};
   for (const kind of ['backend', 'frontend']) {
     const service = JSON.parse(cloud(['run', 'services', 'describe', 'workflow-' + kind, '--format=json']));
@@ -290,11 +417,7 @@ export async function main(mode, env = process.env) {
     const service = JSON.parse(cloud(['run', 'services', 'describe', 'workflow-' + kind, '--format=json']));
     const snapshot = serviceSnapshot(service, kind);
     const revision = JSON.parse(cloud(['run', 'revisions', 'describe', snapshot.revision, '--format=json']));
-    const after = readyRevision(revision, snapshot, kind);
-    const actualImages = new Map(after.images.map(row => [row.name, row.image]));
-    const expected = kind === 'backend' ? { backend: images.backend } : { nginx: images.frontend, 'token-helper': images['token-helper'] };
-    if (Object.entries(expected).some(([name, image]) => actualImages.get(name) !== image) ||
-        revision.metadata.labels?.['release-sha'] !== context.sha) throw new Error('Ready revision provenance mismatch; stop and inspect rollback.json.');
+    const after = verifiedRevision(service, revision, kind, images, platformImages, context);
     checkInvoker(JSON.parse(cloud(['run', 'services', 'get-iam-policy', 'workflow-' + kind, '--format=json'])), kind);
     save(kind + '-revision.json', { sha: context.sha, ...after });
     progress.completed.push(kind);
