@@ -18,6 +18,7 @@ COPY . .
 RUN npm run generate -- --config prisma7.config.ts
 
 # Type-check and build the production backend
+ARG RELEASE_SHA=development
 RUN npm run build
 
 
@@ -35,6 +36,7 @@ COPY package.json package-lock.json prisma7.config.ts tsconfig.json ./
 COPY prisma/schema.prisma ./prisma/schema.prisma
 COPY prisma/migrations ./prisma/migrations
 COPY prisma/provision-users.ts ./prisma/provision-users.ts
+COPY prisma/rotate-demo-credentials.ts ./prisma/rotate-demo-credentials.ts
 
 USER node
 # Jobs explicitly select migrate/provision commands and inject runtime secrets.
@@ -43,6 +45,9 @@ CMD ["node", "--version"]
 
 # Stage 3: Production runtime (keep this last as the default build target)
 FROM node:24-alpine AS production
+
+ARG RELEASE_SHA=development
+LABEL org.opencontainers.image.revision=$RELEASE_SHA
 
 WORKDIR /app
 

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import "./App.css";
 import ReviewerWorkspace from "./ReviewerWorkspace";
+import ReleaseBadge from "./ReleaseBadge";
 
 type User = {
   id: number;
@@ -23,7 +24,7 @@ async function responseError(response: Response): Promise<string> {
   return data.error ?? "Something went wrong.";
 }
 
-function App() {
+function AppWorkspace() {
   const [user, setUser] = useState<User | null>(null);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [email, setEmail] = useState("");
@@ -270,4 +271,6 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return <><AppWorkspace /><ReleaseBadge /></>;
+}
