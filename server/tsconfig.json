@@ -9,5 +9,5 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "prisma/seed.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "prisma/**/*.ts", "vitest.config.ts"]
 }

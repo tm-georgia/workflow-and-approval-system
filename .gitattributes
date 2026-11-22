@@ -1,0 +1,1 @@
+client/docker-entrypoint.d/*.envsh text eol=lf

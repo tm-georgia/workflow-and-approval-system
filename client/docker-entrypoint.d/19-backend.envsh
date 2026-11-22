@@ -1,0 +1,57 @@
+#!/bin/sh
+# Sourced by the official Nginx entrypoint before 20-envsubst-on-templates.sh.
+set -eu
+
+invalid_backend_url() {
+    echo >&2 'BACKEND_URL must be an HTTPS origin (no credentials, path, query or fragment), or http://server:3000 for local Compose.'
+    exit 1
+}
+
+BACKEND_URL=${BACKEND_URL-http://server:3000}
+BACKEND_URL=${BACKEND_URL%/}
+
+case "$BACKEND_URL" in
+    http://server:3000) BACKEND_HOST=server ;;
+    https://*)
+        authority=${BACKEND_URL#https://}
+        case "$authority" in
+            ''|*[!a-zA-Z0-9.:-]*) invalid_backend_url ;;
+        esac
+        printf '%s\n' "$authority" | grep -Eq '^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?(:[0-9]{1,5})?$' || invalid_backend_url
+        case "$authority" in
+            *:*)
+                backend_port=${authority##*:}
+                [ "$backend_port" -ge 1 ] && [ "$backend_port" -le 65535 ] || invalid_backend_url
+                ;;
+        esac
+        BACKEND_HOST=${authority%%:*}
+        ;;
+    *) invalid_backend_url ;;
+esac
+
+BACKEND_AUTH_MODE=${BACKEND_AUTH_MODE:-none}
+case "$BACKEND_AUTH_MODE" in
+    none)
+        if [ -n "${K_SERVICE:-}" ]; then
+            echo >&2 'Cloud Run requires BACKEND_AUTH_MODE=google.'
+            exit 1
+        fi
+        ;;
+    google)
+        # The audience and upstream must be the canonical Cloud Run HTTPS origin.
+        case "$BACKEND_URL" in
+            "https://$BACKEND_HOST") ;;
+            *) echo >&2 'Google authentication requires a canonical Cloud Run origin.'; exit 1 ;;
+        esac
+        case "$BACKEND_HOST" in
+            *.run.app) ;;
+            *) echo >&2 'Google authentication requires a Cloud Run hostname.'; exit 1 ;;
+        esac
+        ;;
+    *) echo >&2 'BACKEND_AUTH_MODE must be none or google.'; exit 1 ;;
+esac
+cp "/etc/nginx/auth-modes/$BACKEND_AUTH_MODE.conf" /etc/nginx/backend-auth.conf
+
+# Substitute only these settings; preserve Nginx variables such as $uri.
+NGINX_ENVSUBST_FILTER='^(BACKEND_URL|BACKEND_HOST)$'
+export BACKEND_URL BACKEND_HOST NGINX_ENVSUBST_FILTER
