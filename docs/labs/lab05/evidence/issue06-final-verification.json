@@ -1,7 +1,7 @@
 {
   "verified_at": "2026-11-22T12:40:59.618411+07:00",
   "repository": "tm-georgia/workflow-and-approval-system",
-  "scope": "Read-only verification; no settings, IAM or GCP changes; no repeat demonstrations. API evidence does not replace a settings screenshot.",
+  "scope": "Read-only verification snapshot, clarified by the subsequent official-handout audit. No settings, IAM or GCP changes; no repeat demonstrations. Public main ruleset evidence supplies the required setting without a mandatory separate screenshot.",
   "worktrees": {
     "issue6": {
       "path": ".",
@@ -300,7 +300,7 @@
     "labels": [
       "lab5"
     ],
-    "project_board": "UNVERIFIED: GraphQL INSUFFICIENT_SCOPES for read:project; browser access host unavailable. Authorization was not broadened."
+    "project_board": "BLOCKED verification: GraphQL INSUFFICIENT_SCOPES for read:project; browser access host unavailable; native Computer Use stopped because the current Chrome URL could not be determined confidently enough to enforce policy. Membership is unknown, not proven absent. Authorization was not broadened."
   },
   "reviews": {
     "28": {
@@ -429,11 +429,118 @@
     "docs/labs/lab05/evidence/14-gcp-authentication-success.png": "ec433ef16a276eb5f01a9d0bf8561ce0fc42b0704e0b88459a1899451c49f818"
   },
   "remaining_limitations": [
-    "R-09: PR #28 generic approval; PR #30 empty approval body; no substantive inline or discussion comments. Actual technical review or instructor acceptance remains required.",
-    "Project-board membership unverified due to access limitation.",
-    "Main/staging/WIF/IAM settings screenshots are absent; final Lab 5 PDF and any unverified human GCP access/Free Trial evidence remain pending.",
-    "Exposed demo-credential rotation remains pending before further demonstration use or handoff; no rotation performed.",
-    "Exact deployed-source equivalence remains unverified; promoting source into main does not prove immutable-image provenance.",
-    "The documentation PR requires teammate review/approval and remains unmerged; Issue #27 stays open."
-  ]
+    "Issue 6 / R-09: PR #28 generic approval; PR #30 empty approval body; no substantive inline/discussion comments; PR #31 unreviewed at correction preflight. Genuine technical review and acceptance of the historical limitation remain outstanding.",
+    "Issue 6 / R-09: project-board membership verification is blocked by API scope and browser access/policy limitations; absence is not established.",
+    "Issue 1 prerequisites: two human Owners and no explicit human Editor grant; other member project-access confirmation and unavailable personal-Gmail trial/credit/no-prepayment/no-Upgrade evidence remain outstanding.",
+    "Issue 7: exact deployed-source equivalence and repeatable pipeline/running-commit proof remain separate; Issue 7 paused and untouched.",
+    "Issue 8 persistence and Issue 9 final PDF/evidence-index assembly are separate requirements, not failed Issue 6 authentication or C-02.",
+    "Issue 5 security follow-up: exposed demo-credential rotation remains pending before further demonstration use or handoff; no rotation performed.",
+    "Main/staging/WIF/IAM/variables/expanded-authentication screenshots are optional supporting views; public main-setting evidence and the existing historical blocker screenshot are retained.",
+    "The existing documentation PR remains unmerged and requires teammate review; Issue #27 stays open."
+  ],
+  "audit_clarification": {
+    "date": "2026-11-22",
+    "source_handout": {
+      "filename": "01_SE_Lab_5_updated.pdf",
+      "sha256": "bc8e6a8e16c7b5c4d007c75f5d35203b212b4f947237a6c13d101a64058adb65",
+      "sections": [
+        "4.1",
+        "4.4",
+        "5",
+        "7",
+        "8",
+        "9",
+        "12"
+      ]
+    },
+    "issue_boundaries": {
+      "issue6": {
+        "authentication": "PASS: existing run 44987606342",
+        "R-06": "PASS",
+        "C-02": "PASS: preserved historical PR #29 blocker",
+        "specific_peer_review": "MISSING: #28 generic; #30 empty; #31 none at correction preflight",
+        "project_board": "BLOCKED verification; unknown membership"
+      },
+      "issue1": "Human access, specified Editor role, personal-Gmail Free Trial credit and no prepayment/Upgrade prerequisites",
+      "issue7": "R-07 / R-08 / C-06 deployment and running-commit/source provenance; paused and untouched",
+      "issue8": "R-04 / C-05 persistence; rollback/roll-forward recommended",
+      "issue9": "Final deployment-document and team PDF/evidence-index assembly"
+    },
+    "main_gate_public_evidence": {
+      "url": "https://github.com/tm-georgia/workflow-and-approval-system/rules/27825087",
+      "status": 200,
+      "final_url": "https://github.com/tm-georgia/workflow-and-approval-system/rules/27825087",
+      "check_names_present": {
+        "Client Tests and Build": true,
+        "Server Tests and Build": true,
+        "Private Backend Proxy Checks": true
+      },
+      "sign_in_required": false
+    },
+    "main_gate_screenshot": "Optional: public URL shows all three required checks; the historical blocked-merge screenshot remains necessary.",
+    "optional_screenshots": [
+      "staging gate",
+      "WIF provider",
+      "service-account IAM",
+      "Actions variables",
+      "expanded existing authentication steps"
+    ],
+    "issue1_human_access": {
+      "project_lifecycle": "ACTIVE",
+      "current_university_account_project_read": "PASS",
+      "human_owner_principals": 2,
+      "human_editor_bindings": 0,
+      "other_principal_type": "personal Gmail",
+      "both_member_interactive_access": "Not verified; other member confirmation needed",
+      "role_discrepancy": "Two Owners provide broader access, but do not establish the handout-specified Editor grant; clarification/acceptance required before any separately authorized IAM decision.",
+      "billing_enabled": true,
+      "billing_account_read": "PERMISSION_DENIED for the current account",
+      "trial_credit_signup_identity_eligibility_prepayment_upgrade": "UNVERIFIED; trial-owner evidence needed; enabled billing and a Gmail IAM principal are insufficient"
+    },
+    "documentation_pr": {
+      "url": "https://github.com/tm-georgia/workflow-and-approval-system/pull/31",
+      "original_commit_sha": "9201d9f3c39dd8ad34ded6b9822500455b9e5180",
+      "state": "open; unmerged",
+      "reviews_at_correction_preflight": [],
+      "original_ci": {
+        "pr": 31,
+        "head_sha": "9201d9f3c39dd8ad34ded6b9822500455b9e5180",
+        "all_three_passed": true,
+        "runs": [
+          {
+            "id": 44990784980,
+            "url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44990784980",
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "9201d9f3c39dd8ad34ded6b9822500455b9e5180",
+            "run_attempt": 1,
+            "jobs": [
+              {
+                "id": 137111153010,
+                "name": "Private Backend Proxy Checks",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44990784980/job/137111153010"
+              },
+              {
+                "id": 137111153201,
+                "name": "Client Tests and Build",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44990784980/job/137111153201"
+              },
+              {
+                "id": 137111153218,
+                "name": "Server Tests and Build",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44990784980/job/137111153218"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "original_snapshot_preservation": "Original verified_at, ruleset/effective settings, historical review bodies, branch/source SHAs, historical runs and screenshot hashes are retained. Audit clarification does not represent a repeat cloud operation."
+  }
 }
