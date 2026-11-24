@@ -1,0 +1,12 @@
+{
+  "sha": "44a3fdaf0e3e056bc717f64c78c18a9cea53bc05",
+  "status": "passed",
+  "checks": [
+    "200",
+    "200",
+    "403",
+    "404",
+    "frontend SHA",
+    "backend SHA"
+  ]
+}

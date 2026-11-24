@@ -4,7 +4,28 @@
 
 ## 1. Purpose
 
-**Issues 7-8 local preparation:** see the [automated main release procedure](issue07-automated-deployment.md) for the workflow, environment inputs, dedicated deployment IAM/WIF commands, immutable source/version verification, resource impact and approval-only rollback. The [persistence and credential-rotation runbook](issue08-persistence.md) prepares R-04/C-05 without production writes. No automated cloud deployment or live persistence proof is claimed. Issue 6's uncommitted documentation/evidence remains preserved in its separate original worktree.
+**Issue 7 production deployment completed (24 November 2026):** [Deploy Main Release #5, run 45314206420](https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/45314206420) passed both release validation and the production deployment job for released main SHA `44a3fdaf0e3e056bc717f64c78c18a9cea53bc05`. The completed [Issue 7 deployment and release runbook](issue07-automated-deployment.md) records the repeatable release procedure, restricted IAM/WIF identity, immutable images, original artifact, version/security verification and approval-only recovery procedure. This supersedes the earlier preparation-only Issue 7 introduction.
+
+| Completed Issue 7 result | Recorded production evidence |
+|---|---|
+| GCP destination | Project `cpe334-workflow-approval-2026`, region `asia-southeast1`; existing services and Cloud SQL reused |
+| Public frontend | [Workflow and Approval System](https://workflow-frontend-597719179612.asia-southeast1.run.app) |
+| Release path | Original implementation/release PRs #33/#35, publish-guard fix/release #36/#37, final OCI provenance fix [#38](https://github.com/tm-georgia/workflow-and-approval-system/pull/38) and release [#39](https://github.com/tm-georgia/workflow-and-approval-system/pull/39); all six are linked in the runbook |
+| Backend revision | `workflow-backend-00004-sck`, READY and receiving 100% traffic in the saved deployment evidence |
+| Frontend revision | `workflow-frontend-00002-flx`, READY and receiving 100% traffic in the saved deployment evidence |
+| Running release | Frontend and backend version responses match the full released main SHA above; public frontend displays `Lab 5: automated deployment` and prefix `44a3fdaf0e3e` |
+| Runtime references and gate | Database secret version `2`, JWT secret version `1`; `GCP_DEPLOY_ENABLED` restored to `false`; no secret payloads recorded |
+| Automated security checks | Recorded HTTP 200 / 200 / 403 / 404; public frontend, IAM-protected backend and isolated helper preserved |
+
+Evidence: [successful deployment](evidence/Issue7_Automated_Deployment_Success.png), [backend revision](evidence/Issue7_Backend_Deployment_Verified.png), [frontend revision](evidence/Issue7_Frontend_Deployment_Verified.png), [visible release badge](evidence/Issue7_Visible_Release_Badge.png) and [final verification JSON](evidence/issue07-final-verification.json). See the [full evidence index](issue07-automated-deployment.md#6-recorded-validation-impact-and-evidence-index) for captions and limits. The badge crop omits the URL and shows `Loading...`; independent public HTTP/version checks corroborate the URL and full SHA. The original archive and all six non-sensitive JSON records are preserved in ignored local review storage as documented in the runbook.
+
+**Issue 7 final factual status:** all six PRs (#33, #35, #36, #37, #38 and #39) have `lab5`. Issue #32 has **10/10 completed tasks**, remains **OPEN**, is assigned to **thit3455** and has **In Progress** status. `GCP_DEPLOY_ENABLED=false`. R-07, R-08 and R-10 are **PASS**; C-06 has **Operational evidence PASS**, retaining the R-09 qualification. The [Issue 7 runbook](issue07-automated-deployment.md#8-acceptance-criteria-and-remaining-submission-checks) records the final assessment and evidence.
+
+**R-09 historical qualification:** R-09 remains **QUALIFIED** because original teammate approvals preceded the merges, but specific written follow-up comments on #33/#38/#39 were added retrospectively. They are not represented as original pre-merge rationale. The documentation is ready for publication approval with this qualification disclosed; unqualified R-09 acceptance is not claimed. This local refresh changes no remote labels, tasks, issue status or production resources and does not close Issue #32.
+
+**Issue 8 boundary:** the [separate persistence and credential-rotation runbook](issue08-persistence.md) remains the R-04/C-05 reference. The saved marker remained visible as PENDING after automated redeployment; this is an application-level observation, not proof of full nine-field equality or completion of the restart requirement. Issue 8 documentation is not changed by this correction.
+
+**Historical record boundary:** the dated Issue 5 and Issue 6 records below are preserved and describe their own earlier checkpoints. The original preparation note stated that Issue 6's uncommitted documentation/evidence remained preserved in its separate original worktree. Those historical notes are not a claim that the completed Issue 7 deployment is still pending.
 
 
 
