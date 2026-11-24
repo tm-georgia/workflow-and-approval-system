@@ -1,6 +1,6 @@
 # Lab 5 Issue 8: Database Persistence Verification
 
-Status (24 November 2026): **CONTROLLED REPLACEMENT AND PERSISTENCE VERIFICATION PASSED**. [Issue #41](https://github.com/tm-georgia/workflow-and-approval-system/issues/41) remains OPEN. The approved production operation and read-only comparisons are complete; Git publication, issue updates and final submission remain separately authorized work.
+Status (24 November 2026): **CONTROLLED REPLACEMENT/PERSISTENCE VERIFICATION PASSED; DOCUMENTATION INTEGRATED; ISSUE CLOSED**. [Issue #41](https://github.com/tm-georgia/workflow-and-approval-system/issues/41) closed after [PR #42](https://github.com/tm-georgia/workflow-and-approval-system/pull/42) merged into sprint-staging at `456deae703f9027cb507e0a4614d9e7c61d44d14`. Its genuine specific teammate approval preceded merging, all three CI checks passed, and its ten tasks are complete. The final report is separate Google Docs work; no production verification is repeated by this cleanup.
 
 See the [deployment overview](deployment.md#15-issue-8-database-persistence-verification) for the compact results and submission boundary.
 
@@ -14,8 +14,8 @@ The official 01_SE_Lab_5_updated.pdf, pages 3 and 7, requires R-04/C-05: earlier
 | C-05 | **FULLY SATISFIED:** Request 2 was created before both events and remains available afterward; before/after screenshots, actual revision/process evidence and nine-field API comparisons are preserved |
 | Comparison scope | Exactly nine selected Request 2 business fields; no assertion that every database row/column is identical or that no unrelated actor ever wrote data |
 | Restart method | Controlled same-image Cloud Run backend revision/process replacement; not an in-place restart of the identical process, a database restart, browser refresh or traffic toggle alone |
-| R-09 / R-10 publication | Feature branch, issue lab5 label and assignee verified; specific teammate review, PR/CI history and board confirmation remain publication/submission tasks |
-| Issue state | OPEN, assigned to thit3455, lab5; remote tasks still 0/10 checked at final read-back. All ten tasks now have evidence support locally; no checkbox or issue status was changed |
+| R-09 / R-10 publication | **COMPLETE for PR #42:** feature branch, lab5 label, specific tm-georgia review at 14:38:25 UTC before merge at 14:44:10 UTC, and all three passing CI checks. Current board Done confirmation remains manual; earlier Lab 5 historical qualifications are unchanged. |
+| Issue state | **CLOSED**, assigned to thit3455, lab5; **10/10 tasks complete**, with a [completion comment](https://github.com/tm-georgia/workflow-and-approval-system/issues/41#issuecomment-7134901482). Its earlier 0/10/open preparation checkpoint is historical. |
 
 Project cpe334-workflow-approval-2026, region asia-southeast1; existing Cloud SQL workflow-db, PostgreSQL 17, database workflow. The expected attachment cpe334-workflow-approval-2026:asia-southeast1:workflow-db and persistent read connectivity were verified. No authorized public client networks were configured. No database, request, credential, IAM, billing, image or frontend configuration was modified.
 
@@ -228,7 +228,7 @@ The old proposed 21-restart-instance-evidence.png was not captured and is not in
 
 ## 7. Issue 41 checklist, acceptance and remaining publication work
 
-All ten tasks have local evidence support. The remote checklist is still 0/10 and remains unchanged pending separate authorization.
+All ten tasks have evidence support, are checked complete remotely, and Issue #41 is closed after PR #42 integration. The earlier 0/10 preparation state below is superseded; the table records the evidence for each completed task.
 
 | Task | Local evidence assessment |
 |---|---|
@@ -245,6 +245,6 @@ All ten tasks have local evidence support. The remote checklist is still 0/10 an
 
 All Issue 41 acceptance criteria are satisfied for the tested record: persistent Cloud SQL; record survives restart and redeployment; selected fields/status unchanged; evidence documented; no production business data intentionally written or reset. No claim of full database-wide equality is made.
 
-**Operational blockers: none.** Local documentation/evidence is ready for review and publication approval. Remaining submission work: confirm project-board status (current API lacks read:project), obtain specific teammate review and required CI through the normal approved PR/release process, update the issue checklist/status only when authorized, and include the captioned persistence evidence in Answer Part 3 through the separate Issue 9 task. Issue 7's historical R-09 qualification is preserved; this task does not resolve or rewrite it.
+**Operational blockers: none for the demonstrated scenario.** PR #42's specific pre-merge review, all three passing CI checks, documentation integration, 10/10 checklist update and closure are complete. An authorized project maintainer must confirm/set Done because this token lacks project access. The team will prepare captioned Answer Part 3 evidence in its separate Google Docs report. Issue 7's historical R-09 qualification and Issue 1's unresolved access-method compliance remain explicit; no new issue, PDF or production operation is created.
 
 The production verification session performed no commit, push, PR, merge or issue closure. Subsequent documentation publication is separately authorized and does not alter the preserved verification evidence. No further cloud operation is needed merely to complete R-04/C-05.
