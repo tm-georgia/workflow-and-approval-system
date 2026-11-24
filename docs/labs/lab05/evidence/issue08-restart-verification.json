@@ -1,0 +1,198 @@
+{
+  "check": "Lab 5 Issue 41 / R-04 / C-05",
+  "status": "passed",
+  "sourceReleaseSha": "44a3fdaf0e3e056bc717f64c78c18a9cea53bc05",
+  "project": "cpe334-workflow-approval-2026",
+  "region": "asia-southeast1",
+  "method": "Controlled same-image backend process replacement; not an in-place restart of the identical process",
+  "chronology": [
+    "2026-11-22 original Request 2 baseline",
+    "2026-11-24 automated redeployment run 45314206420",
+    "2026-11-24 fresh pre-restart R0 and execution-time GET",
+    "2026-11-24 staged backend replacement, verified cutover and R1"
+  ],
+  "automatedRedeployment": {
+    "runId": 45314206420,
+    "url": "https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/45314206420",
+    "repeated": false
+  },
+  "revisions": {
+    "before": "workflow-backend-00004-sck",
+    "after": "workflow-backend-issue8-20261124-130420",
+    "frontend": "workflow-frontend-00002-flx"
+  },
+  "images": {
+    "configuredIndex": "asia-southeast1-docker.pkg.dev/cpe334-workflow-approval-2026/workflow-approval/backend@sha256:305715ebd9e76d6b31975940420952f2eac32388db154137a71dcddccc80a93c",
+    "resolvedPlatform": "asia-southeast1-docker.pkg.dev/cpe334-workflow-approval-2026/workflow-approval/backend@sha256:e8af7d686498cb4de5a49c2baba05ccf3c3530b443840c8685ca65c8b946e5dd",
+    "unchanged": true
+  },
+  "traffic": {
+    "before": [
+      {
+        "latestRevision": true,
+        "percent": 100,
+        "revisionName": "workflow-backend-00004-sck"
+      }
+    ],
+    "staged": [
+      {
+        "percent": 100,
+        "revisionName": "workflow-backend-00004-sck"
+      }
+    ],
+    "after": [
+      {
+        "percent": 100,
+        "revisionName": "workflow-backend-issue8-20261124-130420"
+      }
+    ]
+  },
+  "timing": {
+    "executionPreflight": "2026-11-24T13:32:55.8119296Z",
+    "revisionCreated": "2026-11-24T13:35:30.247170Z",
+    "stageVerified": "2026-11-24T13:38:22.3412378Z",
+    "cutoverVerified": "2026-11-24T13:39:09.7924318Z",
+    "afterApiRequested": "2026-11-24T13:40:42.448Z",
+    "afterApiObserved": "2026-11-24T13:41:09.834Z",
+    "afterScreenshotSaved": "2026-11-24T13:42:41.378Z",
+    "finalReadback": "2026-11-24T13:45:15.6997022Z"
+  },
+  "configuration": {
+    "runtimeMatchExceptRestartMarker": true,
+    "sqlAttachmentPreserved": true,
+    "secretReferencesPreserved": true,
+    "frontendPreserved": true,
+    "iamPreserved": true,
+    "providerManagedRoutingMetadataComparedSeparately": true
+  },
+  "processes": {
+    "before": "cb68bdc8-3490-4112-ad0d-b2dd90998cf5",
+    "after": "4a944d9f-0494-4f5e-95b4-824b24acee5e",
+    "final": "4a944d9f-0494-4f5e-95b4-824b24acee5e",
+    "changed": true
+  },
+  "http": {
+    "frontend": 200,
+    "health": 200,
+    "database": "connected",
+    "frontendVersion": 200,
+    "backendVersion": 200,
+    "backendUnauthenticated": 403,
+    "helper": 404,
+    "frontendReleaseSha": "44a3fdaf0e3e056bc717f64c78c18a9cea53bc05",
+    "backendReleaseSha": "44a3fdaf0e3e056bc717f64c78c18a9cea53bc05"
+  },
+  "request": {
+    "id": 2,
+    "fieldNames": [
+      "id",
+      "title",
+      "description",
+      "status",
+      "requesterId",
+      "assignedReviewerId",
+      "reviewerId",
+      "createdAt",
+      "decidedAt"
+    ],
+    "afterRecord": {
+      "id": 2,
+      "title": "LAB5-ISSUE8-PERSIST-20261122T122806Z-a3b38646",
+      "description": "Issue 8 persistence baseline. Keep this request PENDING and unchanged for application restart and automated redeployment verification.",
+      "status": "PENDING",
+      "requesterId": 1,
+      "assignedReviewerId": 2,
+      "reviewerId": null,
+      "createdAt": "2026-11-22T12:30:00.973Z",
+      "decidedAt": null
+    },
+    "comparisons": [
+      {
+        "baseline": "20-persistence-before.json",
+        "fieldCount": 9,
+        "status": "PASS",
+        "differences": []
+      },
+      {
+        "baseline": "issue8-restart-before.json",
+        "fieldCount": 9,
+        "status": "PASS",
+        "differences": []
+      },
+      {
+        "baseline": "issue8-execution-before.json",
+        "fieldCount": 9,
+        "status": "PASS",
+        "differences": []
+      }
+    ],
+    "allNineFieldsUnchanged": true,
+    "businessWritesPerformed": false,
+    "fullDatabaseEqualityClaimed": false
+  },
+  "screenshots": {
+    "originalBefore": "20-persistence-before.png",
+    "freshBefore": "20a-persistence-pre-restart.jpg",
+    "after": "22-persistence-after-restart.jpg",
+    "automatedRedeploymentAfter": "Issue7_Persistence_After_Automated_Deployment.png"
+  },
+  "hashes": [
+    {
+      "Path": "docs/labs/lab05/evidence/20-persistence-before.png",
+      "SHA256": "d6e9061165aed242d93263d633eca82021b2f0b499fe3201265085d97004ef9d",
+      "Bytes": 299361
+    },
+    {
+      "Path": "docs/labs/lab05/evidence/20a-persistence-pre-restart.jpg",
+      "SHA256": "cdb173e380b14b4a487e1e2414864fd5e573c1d2d03b9cdd9191f5dd2a35591a",
+      "Bytes": 93554
+    },
+    {
+      "Path": "docs/labs/lab05/evidence/22-persistence-after-restart.jpg",
+      "SHA256": "29d848a6ebe1343f19aea5e50d5af34255106cd6ecea81bce97292395e641afa",
+      "Bytes": 95171
+    },
+    {
+      "Path": ".local/review/20-persistence-before.json",
+      "SHA256": "e54ba54b35320f4755cee1787bc74de1fb300764253aed39d1daf9b8536ff5bf",
+      "Bytes": 385
+    },
+    {
+      "Path": "docs/labs/lab05/evidence/issue08-pre-restart.json",
+      "SHA256": "e54ba54b35320f4755cee1787bc74de1fb300764253aed39d1daf9b8536ff5bf",
+      "Bytes": 385
+    },
+    {
+      "Path": "docs/labs/lab05/evidence/issue08-post-restart.json",
+      "SHA256": "e54ba54b35320f4755cee1787bc74de1fb300764253aed39d1daf9b8536ff5bf",
+      "Bytes": 385
+    }
+  ],
+  "commands": {
+    "stage": "gcloud run services update workflow-backend --project=cpe334-workflow-approval-2026 --region=asia-southeast1 --revision-suffix=issue8-20261124-130420 --no-traffic --format=json --quiet --container=backend --image=asia-southeast1-docker.pkg.dev/cpe334-workflow-approval-2026/workflow-approval/backend@sha256:305715ebd9e76d6b31975940420952f2eac32388db154137a71dcddccc80a93c --update-env-vars=LAB5_RESTART_MARKER=issue8-20261124-130420",
+    "cutover": "gcloud run services update-traffic workflow-backend --project=cpe334-workflow-approval-2026 --region=asia-southeast1 --to-revisions=workflow-backend-issue8-20261124-130420=100 --format=json --quiet",
+    "recoveryPreparedNotExecuted": "gcloud run services update-traffic workflow-backend --project=cpe334-workflow-approval-2026 --region=asia-southeast1 --to-revisions=workflow-backend-00004-sck=100"
+  },
+  "recovery": {
+    "executed": false,
+    "reason": "Final readiness, configuration, health/privacy and nine-field persistence checks all passed; old traffic retained during pre-cutover guard checks"
+  },
+  "observations": [
+    {
+      "kind": "CLI parsing",
+      "result": "First invocation rejected argument ordering before any API mutation; unchanged old service and absence of candidate verified; corrected service-level flags before container selector"
+    },
+    {
+      "kind": "Staging guard",
+      "result": "Initial strict label comparison stopped before cutover; read-only diagnosis proved runtime spec and annotations identical, with only provider-managed route label absent on the no-traffic revision; verified traffic independently before proceeding"
+    }
+  ],
+  "deploymentEnabled": false,
+  "checklist": {
+    "remoteChecked": 0,
+    "total": 10,
+    "evidenceSupported": 10,
+    "remoteModified": false
+  },
+  "remaining": "Local documentation/evidence publication and specific teammate review/CI require separate Git approval; current project-board status is unverified"
+}

@@ -23,7 +23,7 @@ Evidence: [successful deployment](evidence/Issue7_Automated_Deployment_Success.p
 
 **R-09 historical qualification:** R-09 remains **QUALIFIED** because original teammate approvals preceded the merges, but specific written follow-up comments on #33/#38/#39 were added retrospectively. They are not represented as original pre-merge rationale. The documentation is ready for publication approval with this qualification disclosed; unqualified R-09 acceptance is not claimed. This local refresh changes no remote labels, tasks, issue status or production resources and does not close Issue #32.
 
-**Issue 8 boundary:** the [separate persistence and credential-rotation runbook](issue08-persistence.md) remains the R-04/C-05 reference. The saved marker remained visible as PENDING after automated redeployment; this is an application-level observation, not proof of full nine-field equality or completion of the restart requirement. Issue 8 documentation is not changed by this correction.
+**Issue 8 (#41) — persistence verification completed:** the [completed persistence runbook](issue08-persistence.md) and [Section 15](#15-issue-8-database-persistence-verification) record the approved same-image backend replacement and unchanged Request **2** across the original baseline, existing automated redeployment, fresh pre-restart reads and after-restart read. R-04/C-05 passed for this demonstrated record. The new backend revision is READY at 100%; GCP_DEPLOY_ENABLED=false. Issue 41 remains open and publication requires separate approval. No full database-wide equality is claimed.
 
 **Historical record boundary:** the dated Issue 5 and Issue 6 records below are preserved and describe their own earlier checkpoints. The original preparation note stated that Issue 6's uncommitted documentation/evidence remained preserved in its separate original worktree. Those historical notes are not a claim that the completed Issue 7 deployment is still pending.
 
@@ -1003,3 +1003,71 @@ The GitHub submission plan in Section 13.6 is historical: PRs #26 and #30 comple
 - **Main setting evidence:** the [public Main Quality Gate](https://github.com/tm-georgia/workflow-and-approval-system/rules/27825087) was read anonymously with HTTP 200 and all three required checks present. A separate main-gate screenshot is optional under the handout's link-first evidence rule; preserve the existing historical blocked-merge screenshot.
 - **Issue 1 prerequisites:** the current university account can read the active project; IAM lists that principal and one personal Gmail principal as Owners, with no explicit human Editor grant. Both-member access confirmation, clarification/acceptance of the Owner-versus-Editor discrepancy and personal-Gmail Free Trial/no-prepayment/no-Upgrade evidence remain outstanding. Billing is enabled, but the current account cannot read the billing account, so credit and trial status are not verified. No IAM or billing change was made.
 - **Other-issue boundaries:** repeatable deployment, running-commit proof and deployed-source provenance belong to Issue 7 (paused and untouched); persistence belongs to Issue 8; final PDF/evidence-index assembly belongs to Issue 9. Issue 5's exposed-demo-credential rotation remains mandatory before further demonstration use or handoff. Exact deployed-source equivalence remains unverified; release/authentication success resolves neither limitation.
+
+## 15. Issue 8: Database Persistence Verification
+
+**Completed 24 November 2026: controlled backend process replacement, service recovery and persistence checks PASSED.** Tracking: [Issue #41](https://github.com/tm-georgia/workflow-and-approval-system/issues/41), OPEN, labelled lab5, assigned to thit3455. All ten tasks have evidence support locally; the remote checklist remains 0/10 and was not modified. Documentation branch feature/lab5-issue8-persistence was prepared from base fcc1bfa0fb18372769cb24ba52e83e97eff90ce4; Git publication is separately authorized from the production verification.
+
+The [Issue 8 runbook](issue08-persistence.md) contains exact commands, read-only comparison protocol, scope/limitations, recovery procedure and complete evidence index. Original Issue 5/6 history, Issue 7/9 documentation/evidence and the original release artifact were preserved.
+
+### 15.1 Completed results and exact chronology
+
+| Item | Actual verified result |
+|---|---|
+| Existing persistent database | Cloud SQL workflow-db, PostgreSQL 17, database workflow; expected SQL attachment and database-backed SELECT 1 reads; no SQL setting, migration or data change |
+| Original record | Request 2, LAB5-ISSUE8-PERSIST-20261122T122806Z-a3b38646, createdAt 2026-11-22T12:30:00.973Z; original nine-field JSON/screenshot preserved |
+| Reused automated redeployment | [Deploy Main Release #5, run 45314206420](https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/45314206420), release 44a3fdaf0e3e056bc717f64c78c18a9cea53bc05; no additional automated run |
+| Old/recovery backend revision | workflow-backend-00004-sck, READY at 100% before staging/cutover |
+| New active backend revision | workflow-backend-issue8-20261124-130420, created 13:35:30.247 UTC; READY and verified at 13:38:22.341 UTC with original traffic still 100% |
+| Cutover | Verified new revision 100% by 13:39:09.793 UTC; final read-back at 13:45:15.699 UTC confirms new READY/100%, old 0% |
+| Frontend | workflow-frontend-00002-flx, 100%; frontend/sidecar configuration and IAM unchanged |
+| Process identity | Execution-time old cb68bdc8-3490-4112-ad0d-b2dd90998cf5 → new 4a944d9f-0494-4f5e-95b4-824b24acee5e; new revision plus same image/configuration confirms controlled backend process replacement |
+| Source identity | Both frontend/backend report 44a3fdaf0e3e056bc717f64c78c18a9cea53bc05 |
+| HTTP recovery/privacy | Public frontend 200, database health 200/connected, both versions 200, direct unauthenticated backend 403, internal helper 404 |
+| Request 2 after restart | Fresh authenticated GET observed 13:41:09.834 UTC; all nine fields exactly match original A, fresh R0 and execution-time before |
+| Recovery operation | Not required or executed; old traffic was retained during staging guards |
+| Gate / other operations | GCP_DEPLOY_ENABLED=false; no workflow dispatch, new image/build, database write, credential rotation, IAM/billing change or GitHub write |
+
+Actual order: **A (22 November original baseline) → D (24 November successful automated redeployment) → R0 (fresh pre-restart checkpoint) → approved same-image backend replacement → R1**. The handout requires survival across both events and does not prescribe their order; no second automated deployment was needed.
+
+Configured immutable backend index:
+
+~~~text
+asia-southeast1-docker.pkg.dev/cpe334-workflow-approval-2026/workflow-approval/backend@sha256:305715ebd9e76d6b31975940420952f2eac32388db154137a71dcddccc80a93c
+~~~
+
+Resolved platform image:
+
+~~~text
+asia-southeast1-docker.pkg.dev/cpe334-workflow-approval-2026/workflow-approval/backend@sha256:e8af7d686498cb4de5a49c2baba05ccf3c3530b443840c8685ca65c8b946e5dd
+~~~
+
+Both stayed unchanged and match the original release artifact at their respective OCI levels. Backend runtime identity, SQL attachment, DATABASE_URL secret reference workflow-database-url:2, JWT_SECRET reference workflow-jwt-secret:1, port 8080, resources, scaling/probes, frontend and existing IAM policies were preserved. The only intended runtime difference is the non-secret LAB5_RESTART_MARKER; control-plane revision/routing identity changed as expected. No secret payload was accessed.
+
+The initial CLI argument-order error occurred before any API mutation and was corrected without changing settings. A strict staging guard then paused on a provider-managed route label; read-only diagnosis confirmed identical runtime specification/operational annotations, with the old revision still at 100%. The routing label was evaluated separately from actual traffic and the complete checks passed before cutover. No runtime drift was silently accepted and no second candidate was created.
+
+### 15.2 Evidence and selected-field equality
+
+| Evidence | Caption / coverage |
+|---|---|
+| [Original before screenshot](evidence/20-persistence-before.png) | Original requester/marker/description/PENDING/displayed creation time before both events; original JSON supplies hidden IDs/nulls/UTC precision |
+| [Fresh pre-restart screenshot](evidence/20a-persistence-pre-restart.jpg) and [nine-field JSON](evidence/issue08-pre-restart.json) | R0 screenshot saved 13:03:32.172 UTC; fresh authenticated GET observed 13:04:20.074 UTC; all fields match A |
+| [After-restart screenshot](evidence/22-persistence-after-restart.jpg) and [nine-field JSON](evidence/issue08-post-restart.json) | Actual R1 GET observed 13:41:09.834 UTC; fresh public requester page saved 13:42:41.378 UTC; same marker/description/PENDING/original time |
+| [Restart verification JSON](evidence/issue08-restart-verification.json) | Actual commands, timings, traffic/revisions/processes, source/image/configuration/privacy results, exact nine-field comparisons and hashes |
+| [Existing post-redeployment screenshot](evidence/Issue7_Persistence_After_Automated_Deployment.png), [successful pipeline screenshot](evidence/Issue7_Automated_Deployment_Success.png), [original verification JSON](evidence/issue07-final-verification.json) | Preserved Issue 7 automated redeployment evidence, reused without alteration |
+
+Compared fields: id, title, description, status, requesterId, assignedReviewerId, reviewerId, createdAt, decidedAt. All nine match A/R0/execution-before/R1: id 2, requesterId 1, assignedReviewerId 2, PENDING, null reviewerId/decidedAt and original createdAt retained. The original JSON and public pre/post JSON have identical SHA-256 e54ba54b35320f4755cee1787bc74de1fb300764253aed39d1daf9b8536ff5bf.
+
+Matching these selected record fields does not prove all database rows/columns are identical or exclude every possible unrelated intervening write. The earlier D screenshot alone does not expose hidden fields; the fresh post-D API comparisons provide the exact record equality evidence. No business data write was performed for this operation.
+
+The new screenshots are genuine native JPEGs, not edited images; the original PNG/JSON were not overwritten. Actual machine-readable revision/process evidence is supplied by the verification JSON rather than inventing the old proposed 21-restart-instance-evidence.png. Screenshot/JSON integrity, credential patterns, relative links/anchors and command syntax are checked locally.
+
+### 15.3 Acceptance, recovery and remaining submission work
+
+**R-04 and C-05: FULLY SATISFIED for the demonstrated record and documented Cloud Run same-image process-replacement method.** This is not a claim of an in-place restart of the identical process, a SQL restart or full database equality.
+
+All ten Issue 41 tasks are supported: existing database configuration; original record identification; before verification; actual restart/service recovery; after-restart verification; successful automatic redeployment; record after redeployment; selected-field comparison; complete before/after/deployment evidence; completed procedure/results here and in the runbook.
+
+The approved traffic fallback to workflow-backend-00004-sck was retained but not executed. It would only reassign traffic, never restore/modify database contents. The old revision was not deleted. No marker cleanup or further cloud change is authorized by this completed record; future operations require separate approval.
+
+**Cloud/persistence blockers: none.** Local documentation/evidence is ready for teammate review and approved publication. Submission controls include project-board status confirmation, the approved commit/push/PR with specific teammate review and required CI, authorized checklist/status updates, and captioned Answer Part 3 assembly through Issue 9. The production verification session closed no issue, changed no board and performed no Git publication; subsequent publication is separate from that cloud operation. Existing Issue 7 R-09 qualifications remain intact.
