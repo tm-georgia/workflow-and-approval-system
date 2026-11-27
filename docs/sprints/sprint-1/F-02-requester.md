@@ -29,6 +29,15 @@ The backend must get the Requester's identity from the authenticated session or 
 - When the retrieved record has a decision, show its status, Reviewer ID, and decision time. The history here is a list of the owner's requests with their single Sprint 1 decision metadata, not an event log.
 - HTML requires both fields and currently limits the title to 120 characters. The API validates non-empty strings but does not impose that maximum. The UI limit is a disclosed implementation difference, not an approved new product rule. Resolve a shared length policy with the teammate before promoting it to an FR/BR.
 
+- A successful request submission must remain acknowledged as successful even if the subsequent history retrieval fails.
+- A history-refresh failure must be displayed separately from the submission success message.
+- Provide a manual action for the Requester to retry history retrieval without submitting the request again.
+- Show loading feedback while the history retry is in progress and prevent duplicate retry actions.
+- When a retry succeeds, update the displayed request history and clear the history-refresh warning.
+- When a retry fails, preserve the previously displayed history and keep the warning visible.
+- Retrying history must not create another request or change the result of the original submission.
+- Existing submission validation and POST-failure behavior remain unchanged.
+
 ## API specification
 
 Protected operations require the HTTP-only `accessToken` cookie and the `REQUESTER` role. Both use JSON; safe errors are `{ "error": "message" }`. Missing/invalid sessions return `401`; a Reviewer receives `403`. Malformed JSON returns `400` without internal exception details.
@@ -60,6 +69,12 @@ Prisma `Request` uses a generated primary key, a required owner relation (`onDel
 - **AC-03:** The Requester can retrieve their saved request and status.
 - **AC-04:** A Requester cannot retrieve another Requester's private request.
 - **AC-05:** A request missing a required field is rejected and is not saved.
+- **AC-06:** A successful request submission remains acknowledged as successful even when the subsequent history retrieval fails.
+- **AC-07:** A failed history retrieval displays a separate warning without changing the successful submission outcome.
+- **AC-08:** The Requester can retry history retrieval without submitting the request again.
+- **AC-09:** The retry action displays loading feedback while history is being retrieved.
+- **AC-10:** A successful retry updates the displayed history and clears the warning.
+- **AC-11:** A failed retry preserves previously displayed history and keeps the warning visible.
 
 ## Software Test Specification
 
@@ -81,6 +96,19 @@ The IDs above are feature-local planned IDs. They do not rename the existing bac
 | Shared NFR-01/NFR-02 | API/database integration | Submit signed out; sign in as Reviewer and call Requester operations. | `401`/`403`, no private data. | Existing `TEST-01`, `TEST-04`; F-03 access tests supplement shared middleware coverage. |
 | UI success / AC-01, AC-03 | Component/UI with mocked API | Submit through the form, receive success, reload the Requester's list. | Success feedback, form cleared, `PENDING` record displayed. | Existing `TEST-UI-01` in `client/src/App.test.tsx`; `TEST-F02-UI-SUCCESS` in `RequesterEvidence.test.tsx`. Mocked UI checks do not establish database persistence. |
 
+
+### Requester History Recovery — Lab 7
+
+| Test ID / AC | Level | Preconditions, input, and action | Expected result |
+|---|---|---|---|
+| TEST-06 / AC-06, AC-07 | Component/UI | Sign in as a Requester. Submit a valid request. Mock POST as successful and the subsequent history GET as failed. | The submission success message remains visible. A separate history-refresh warning appears. |
+| TEST-07 / AC-08, AC-10 | Component/UI | Start with a failed history refresh. Retry history retrieval and mock GET as successful with the saved request. | The history updates, the warning disappears, and the original request is not submitted again. |
+| TEST-08 / AC-11 | Component/UI | Display existing request history. Trigger a retry and mock GET as failed. | Previously displayed history remains unchanged and the warning remains visible. |
+| TEST-09 / AC-09 | Component/UI | Trigger history retry and keep the GET request pending. | Loading feedback is visible while the request is pending. Duplicate retry actions are prevented. |
+| TEST-10 / AC-08 | Component/UI | Submit a request successfully, let history retrieval fail, and retry history retrieval. | Only one POST submission occurs. The retry performs history retrieval only. |
+
+These tests are planned contract tests. Their actual test results will be recorded after implementation in the Lab 7 verification evidence.
+
 ## Execution record
 
 See [verification.md](verification.md) for actual commands, counts, runtime, tested working-tree identity, TDD evidence, and limitations. The backend suite runs against a fresh loopback-only PostgreSQL cluster created by `server/scripts/test-local.mjs`; it never takes its connection from the developer's `.env`. The original fixture cleanup runs only in that isolated cluster. No passing result is inferred from implementation or this contract.
@@ -98,3 +126,4 @@ Apply the shared [Product Definition of Done](product-dod.md). Local tests/build
 | Original draft | Existing feature/AC-01-AC-05 and TEST-01-TEST-05 retained. Its API was labeled proposed even though implementation existed. No pre-implementation approval or execution date is inferred. |
 | 12 November 2026 local revision | Expanded existing API/data/STS/dependency documentation; recorded actual test mapping and F-03 assignment integration. Preserved teammate implementation and IDs; added missing success feedback and decision metadata display. |
 | Review/integration | Pending teammate review and explicit Git approval. No fabricated historic contract-before-code or release evidence. |
+| 27 November 2026 — Lab 7 contract revision | Proposed change: separated successful Requester submission outcomes from history-refresh outcomes. Added AC-06–AC-11 and TEST-06–TEST-10 for history recovery, manual retry, loading feedback, and preservation of displayed history. Supporting System SDS and traceability updates prepared. Pending teammate review before implementation. |
