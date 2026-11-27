@@ -140,8 +140,12 @@ button.secondary {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  min-width: 0;
 }
-
+.request-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .topbar {
   margin-bottom: 28px;
 }
@@ -172,8 +176,11 @@ button.secondary {
 .request-list li p {
   margin: 12px 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-
+.request-description {
+  overflow-wrap: anywhere;
+}
 .status {
   padding: 5px 9px;
   border-radius: 999px;

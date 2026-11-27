@@ -184,4 +184,21 @@ describe("F-03 Reviewer workspace through the application", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument());
     expect(screen.queryByText("Travel request")).not.toBeInTheDocument();
   });
+
+  it("TEST-DEF-001-REVIEWER: wraps long request titles and descriptions", async () => {
+  const longTitle = "X".repeat(150);
+  const longDescription = "X".repeat(300);
+
+  mockApi(async () =>
+    response([{ ...pending, title: longTitle, description: longDescription }])
+  );
+
+  render(<ReviewerWorkspace />);
+
+  const titleElement = await screen.findByText(longTitle);
+  const descriptionElement = screen.getByText(longDescription);
+
+  expect(window.getComputedStyle(titleElement).overflowWrap).toBe("anywhere");
+  expect(window.getComputedStyle(descriptionElement).overflowWrap).toBe("anywhere");
+});
 });

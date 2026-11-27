@@ -248,7 +248,7 @@ function AppWorkspace() {
                 {requests.map((item) => (
                   <li key={item.id}>
                     <div className="request-heading">
-                      <strong>{item.title}</strong>
+                      <strong className="request-title">{item.title}</strong>
                       <span className={`status ${item.status.toLowerCase()}`}>
                         {item.status}
                       </span>
