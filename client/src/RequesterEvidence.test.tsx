@@ -32,4 +32,32 @@ describe("F-02/F-03 Requester integration UI evidence", () => {
     expect(await screen.findByText("APPROVED")).toBeInTheDocument();
     expect(screen.getByText(/Decision by Reviewer #1 on/)).toBeInTheDocument();
   });
+
+
+  it("TEST-DEF-001: keeps long request titles and descriptions within their containers", async () => {
+    const longTitle = "T".repeat(150);
+    const longDescription = "D".repeat(300);
+
+    vi.stubGlobal("fetch", vi.fn(async (path) =>
+      path === "/api/auth/me"
+        ? response({ id: 2, email: "requester@example.test", role: "REQUESTER" })
+        : response([{
+            id: 5,
+            title: longTitle,
+            description: longDescription,
+            status: "PENDING",
+            createdAt: "2026-11-27T00:00:00Z",
+          }])
+    ));
+
+    render(<App />);
+
+    const titleElement = await screen.findByText(longTitle);
+    const descriptionElement = screen.getByText(longDescription);
+
+    expect(window.getComputedStyle(titleElement).overflowWrap).toBe("anywhere");
+    expect(window.getComputedStyle(titleElement).minWidth).toBe("0px");
+    expect(window.getComputedStyle(descriptionElement).overflowWrap).toBe("anywhere");
+  });
+
 });
