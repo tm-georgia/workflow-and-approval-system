@@ -34,7 +34,9 @@ function AppWorkspace() {
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(true);
+const [historyError, setHistoryError] = useState("");
+const [historyLoading, setHistoryLoading] = useState(false);
+const [loading, setLoading] = useState(true);
 
   async function loadRequests() {
     const response = await fetch("/api/requests/mine", {
@@ -48,6 +50,20 @@ function AppWorkspace() {
     setRequests(await response.json());
   }
 
+  async function refreshRequestHistory() {
+  setHistoryLoading(true);
+
+  try {
+    await loadRequests();
+    setHistoryError("");
+  } catch {
+    setHistoryError(
+      "Request saved, but your request history could not be refreshed. Please try again."
+    );
+  } finally {
+    setHistoryLoading(false);
+  }
+}
   useEffect(() => {
     async function loadCurrentUser() {
       try {
@@ -115,30 +131,32 @@ function AppWorkspace() {
   }
 
   async function handleSubmitRequest(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setSuccess("");
+  event.preventDefault();
+  setError("");
+  setSuccess("");
+  setHistoryError("");
 
-    try {
-      const response = await fetch("/api/requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ title, description }),
-      });
+  try {
+    const response = await fetch("/api/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ title, description }),
+    });
 
-      if (!response.ok) {
-        throw new Error(await responseError(response));
-      }
-
-      setTitle("");
-      setDescription("");
-      setSuccess("Request saved as Pending.");
-      await loadRequests();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not submit request.");
+    if (!response.ok) {
+      throw new Error(await responseError(response));
     }
+
+    setTitle("");
+    setDescription("");
+    setSuccess("Request saved as Pending.");
+
+    await refreshRequestHistory();
+  } catch (caught) {
+    setError(caught instanceof Error ? caught.message : "Could not submit request.");
   }
+}
 
   if (loading) {
     return <main className="page"><p>Loading…</p></main>;
@@ -240,7 +258,20 @@ function AppWorkspace() {
           </section>
 
           <section className="card">
-            <h2>Request history</h2>
+  <h2>Request history</h2>
+
+  {historyError && (
+    <div>
+      <p className="error" role="alert">{historyError}</p>
+      <button
+        type="button"
+        onClick={refreshRequestHistory}
+        disabled={historyLoading}
+      >
+        {historyLoading ? "Refreshing..." : "Retry history"}
+      </button>
+    </div>
+  )}
             {requests.length === 0 ? (
               <p className="muted">You haven’t submitted any requests yet.</p>
             ) : (
