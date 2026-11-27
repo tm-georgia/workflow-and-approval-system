@@ -1,186 +1,250 @@
-# Lab 5 Issue 8: Database Persistence and Recovery Preparation
+# Lab 5 Issue 8: Database Persistence Verification
 
-Status: **LOCAL PREPARATION ONLY**. No production credentials were retrieved or rotated, no production data was written, no application instance was restarted, and no cloud deployment was performed for this work.
+Status (24 November 2026): **CONTROLLED REPLACEMENT/PERSISTENCE VERIFICATION PASSED; DOCUMENTATION INTEGRATED; ISSUE CLOSED**. [Issue #41](https://github.com/tm-georgia/workflow-and-approval-system/issues/41) closed after [PR #42](https://github.com/tm-georgia/workflow-and-approval-system/pull/42) merged into sprint-staging at `456deae703f9027cb507e0a4614d9e7c61d44d14`. Its genuine specific teammate approval preceded merging, all three CI checks passed, and its ten tasks are complete. The final report is separate Google Docs work; no production verification is repeated by this cleanup.
 
-The official `01_SE_Lab_5_updated.pdf`, page 7, requires Issue 8 **R-04 / C-05**: earlier data remains after an application restart and after automated redeployment, supported by before/after screenshots. Pages 5-6 recommend recovery/rollback; it is useful operational evidence, not a separately scored persistence demonstration. The final PDF places persistence in **Answer Part 3** and repeatable release in **Part 4**. Do not claim these live checks are complete before their actual approved execution.
+See the [deployment overview](deployment.md#15-issue-8-database-persistence-verification) for the compact results and submission boundary.
 
-## 1. Existing baseline and boundaries
+## 1. Acceptance result and scope
 
-- Project `cpe334-workflow-approval-2026`; region `asia-southeast1`.
-- Existing Cloud SQL `workflow-db`, PostgreSQL 17, database `workflow`; retain its instance size, backups, deletion protection and networking.
-- Existing public `workflow-frontend` calls the IAM-protected `workflow-backend` through Nginx and the internal identity-token helper. Preserve service accounts, secret references, Cloud SQL attachment and IAM policies.
-- Existing Request #1 was approved by Reviewer #2 and was visible after the requester signed in again. Preserve it as supplementary historical evidence. For the next approved Issue 8 demonstration, plan exactly one new, uniquely marked persistence request as described below; do not create it during local preparation.
-- Issue 6 authenticated successfully in [run 44987606342](https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/44987606342) at main `ef521b600b3548449487df7eeda5f5cea076c4a1`. That successful authentication and the historical failing-CI demonstration must not be repeated to prepare Issue 8.
-- Exposed demonstration passwords require the separately approved rotation below **before any further live login**. Existing exact deployed-source equivalence remains unverified; future Issue 7 releases record source SHA and immutable digests explicitly.
+The official 01_SE_Lab_5_updated.pdf, pages 3 and 7, requires R-04/C-05: earlier data survives an application restart and automated redeployment, with before/after screenshots. The final PDF places persistence in Answer Part 3. The handout does not prescribe event order or require a database rollback demonstration.
 
-## 2. Persistence evidence protocol (future approval required)
-
-After credential rotation succeeds and session-expiry requirements are satisfied, obtain explicit approval for exactly one production test-request creation. In a trusted terminal, prepare a public unique title, without making any network request:
-
-```powershell
-$PersistenceMarker = 'LAB5-ISSUE8-PERSIST-' + (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
-$PersistenceMarker
-```
-
-Under that later approval, sign in through the existing public frontend and submit exactly one request with this title and a non-sensitive description stating that it is the Issue 8 restart/redeployment persistence record. Record the actual generated request ID, title, complete description, original PENDING status, requester/assigned-reviewer IDs and timestamps. Do not invent an ID or screenshot. Do not approve, edit or resubmit this marked request between checkpoints; unchanged PENDING is a valid persistence result. If a duplicate exists or submission outcome is uncertain, stop and inspect history rather than submit again.
-
-Capture the same business fields at **A: after that single approved creation, before restart**, **B: after restart/replacement**, and **C: after automated redeployment**. Use the same account, unique marker, actual request ID and screenshots/exports throughout. Dates in screenshots may use browser-local time; compare underlying values in UTC.
-
-| Record | Fields to compare exactly |
+| Requirement | Result and evidence boundary |
 |---|---|
-| Unique Issue 8 persistence request | `id`, `title`, `description`, `status`, `requesterId`, `assignedReviewerId`, `reviewerId`, `createdAt`, `decidedAt`; all must match A/B/C exactly |
-| Supplementary Request #1 | Same safe request fields; retain its previously APPROVED outcome without modifying it |
-| Two demo accounts | `id`, `email`, `role`, `createdAt` only; never select password hashes |
-| Database configuration | Same Cloud SQL connection name and application database; no drop/reset/reseed or migration reset |
-| Application deployment | Main source SHA, image digests, backend/frontend ready revision names and traffic |
-| Process identity | `/api/version` release SHA and opaque instance identifier, before and after the restart/replacement |
+| R-04 | **FULLY SATISFIED for the demonstrated application persistence scenario:** existing Cloud SQL storage, successful database-backed reads and the original record preserved across automated redeployment and backend process replacement |
+| C-05 | **FULLY SATISFIED:** Request 2 was created before both events and remains available afterward; before/after screenshots, actual revision/process evidence and nine-field API comparisons are preserved |
+| Comparison scope | Exactly nine selected Request 2 business fields; no assertion that every database row/column is identical or that no unrelated actor ever wrote data |
+| Restart method | Controlled same-image Cloud Run backend revision/process replacement; not an in-place restart of the identical process, a database restart, browser refresh or traffic toggle alone |
+| R-09 / R-10 publication | **COMPLETE for PR #42:** feature branch, lab5 label, specific tm-georgia review at 14:38:25 UTC before merge at 14:44:10 UTC, and all three passing CI checks. Current board Done confirmation remains manual; earlier Lab 5 historical qualifications are unchanged. |
+| Issue state | **CLOSED**, assigned to thit3455, lab5; **10/10 tasks complete**, with a [completion comment](https://github.com/tm-georgia/workflow-and-approval-system/issues/41#issuecomment-7134901482). Its earlier 0/10/open preparation checkpoint is historical. |
 
-At A, capture requester history showing the complete unique marker, actual new request ID and its saved business fields. Request #1 APPROVED, Reviewer #2 and its decision timestamp can appear as supplementary evidence. Save read-only evidence from the existing Cloud SQL-authorized connection if available. Never add authorized public networks or put credentials in commands. The following SQL has no password/hash/secret columns; bind `$1` to the actual unique request ID recorded after the approved creation, rather than substituting a guessed ID:
+Project cpe334-workflow-approval-2026, region asia-southeast1; existing Cloud SQL workflow-db, PostgreSQL 17, database workflow. The expected attachment cpe334-workflow-approval-2026:asia-southeast1:workflow-db and persistent read connectivity were verified. No authorized public client networks were configured. No database, request, credential, IAM, billing, image or frontend configuration was modified.
 
-```sql
-BEGIN READ ONLY;
-SELECT "id", "email", "role", "createdAt"
-FROM public."User"
-WHERE "email" IN ('lab5-requester@example.test', 'lab5-reviewer@example.test')
-ORDER BY "id";
+## 2. Original record, comparisons and actual chronology
 
-SELECT "id", "title", "description", "status", "requesterId",
-       "assignedReviewerId", "reviewerId", "createdAt", "decidedAt"
-FROM public."Request" WHERE "id" IN ($1::integer, 1) ORDER BY "id";
-COMMIT;
-```
+### 2.1 Original Request 2 and exact business fields
 
-Use a parameterized SQL client for `$1`, or record the approved integer in the chosen read-only query tool. Repeat only these read-only UI/API/SQL comparisons at B and C. Do not submit another request, approve the marked request, seed, provision, truncate or reset data. If a field differs, stop and investigate rather than manufacturing matching evidence.
+~~~json
+{
+  "id": 2,
+  "title": "LAB5-ISSUE8-PERSIST-20261122T122806Z-a3b38646",
+  "description": "Issue 8 persistence baseline. Keep this request PENDING and unchanged for application restart and automated redeployment verification.",
+  "status": "PENDING",
+  "requesterId": 1,
+  "assignedReviewerId": 2,
+  "reviewerId": null,
+  "createdAt": "2026-11-22T12:30:00.973Z",
+  "decidedAt": null
+}
+~~~
 
-### 2.1 Application restart evidence
+| Field | Original A | Fresh pre-restart R0 | After restart R1 |
+|---|---|---|---|
+| id | 2 | Exact match | Exact match |
+| title | LAB5-ISSUE8-PERSIST-20261122T122806Z-a3b38646 | Exact match | Exact match |
+| description | Full text in the JSON above | Exact match | Exact match |
+| status | PENDING | Exact match | Exact match |
+| requesterId | 1 | Exact match | Exact match |
+| assignedReviewerId | 2 | Exact match | Exact match |
+| reviewerId | null | Exact match | Exact match |
+| createdAt | 2026-11-22T12:30:00.973Z | Exact match | Exact match |
+| decidedAt | null | Exact match | Exact match |
 
-Cloud Run has no generic `restart service` command. A browser reload, closing a tab, switching traffic, or seeing the same revision is not proof of a process restart. A controlled replacement revision of the **same immutable images and application configuration**, after explicit approval, is the practical Cloud Run demonstration. Record the old/new ready revisions, process-instance identifiers, unchanged image digests and unchanged business records. State clearly in the report that Cloud Run instance replacement was used; obtain instructor confirmation if the handout expects a literal restart of the same process.
+The fresh execution-time GET immediately before staging also matched A and R0. The authenticated R1 GET compared all nine fields against A, R0 and that execution-time record; every comparison passed. No request was created, edited, approved, rejected, deleted or recreated.
 
-The backend-only procedure below keeps the **same current image digest** and adds a unique non-secret revision marker, with no schema operation or frontend change. Do not use an unreviewed broad update that could accidentally replace the two-container frontend or alter runtime settings. Do not modify IAM or force idle instances to terminate. If process identifiers do not change, the restart evidence is **NOT VERIFIED**; do not label a browser refresh as a restart.
+The [pre-restart JSON](evidence/issue08-pre-restart.json), [post-restart JSON](evidence/issue08-post-restart.json) and original ignored .local/review/20-persistence-before.json have identical SHA-256 e54ba54b35320f4755cee1787bc74de1fb300764253aed39d1daf9b8536ff5bf. Matching exports support these nine business fields, not full database equality.
 
-For this backend-process persistence check, the following narrowly scoped alternative creates a replacement backend revision only; the frontend sidecar configuration is untouched. Execute only after explicit approval, with a verified single-revision 100% traffic baseline, and after the version endpoint has been released. `LAB5_RESTART_MARKER` is a non-secret deployment marker, ignored by the application, used solely to force a fresh process. It is not a credential or a database setting.
+### 2.2 Actual chronology
 
-```powershell
+| Checkpoint | Actual observation |
+|---|---|
+| A: 22 November 2026 | Request 2 created; original JSON createdAt 12:30:00.973 UTC and [original requester screenshot](evidence/20-persistence-before.png) preserved |
+| D: 24 November 2026 | Successful automated [Deploy Main Release #5, run 45314206420](https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/45314206420), released SHA 44a3fdaf0e3e056bc717f64c78c18a9cea53bc05 |
+| D observation | [Existing post-redeployment screenshot](evidence/Issue7_Persistence_After_Automated_Deployment.png) shows the original marker/description/PENDING/displayed creation time. It alone does not display all nine fields or establish a precise capture time |
+| R0 planning checkpoint | [Fresh requester screenshot](evidence/20a-persistence-pre-restart.jpg) saved 13:03:32.172 UTC; authenticated nine-field GET observed 13:04:20.074 UTC; same-origin process/release observed 13:06:26.454 UTC |
+| Execution-time baseline | Fresh GET requested 13:27:23.644 UTC and observed 13:27:49.416 UTC; all nine fields still matched A/R0 |
+| Execution preflight | 2026-11-24T13:32:55.8119296Z; old active/latest-ready/latest-created revision workflow-backend-00004-sck, same image/configuration, 100% traffic and fresh process identity |
+| Staged replacement | Created 13:35:30.247 UTC; verified READY/configuration match at 13:38:22.341 UTC; original revision still at 100%, candidate at 0% |
+| Cutover and recovery checks | New revision at 100% with matching configuration and successful HTTP/version/privacy checks by 13:39:09.793 UTC |
+| R1 | Fresh authenticated GET requested 13:40:42.448 UTC, observed 13:41:09.834 UTC; all nine fields matched A/R0/execution baseline |
+| After screenshot | [Fresh post-cutover requester page](evidence/22-persistence-after-restart.jpg) saved 13:42:41.378 UTC after a new page navigation and successful data load |
+| Final state | Read back at 13:45:15.699 UTC: new backend READY at 100%, same source/image, unchanged frontend/IAM, gate false |
+
+The order is **A → D → R0 → controlled replacement → R1**. The earlier record predates both redeployment and restart. This satisfies the handout's event coverage without repeating the successful automated deployment merely to impose the original proposed A/B/C ordering.
+
+The Issue 7 original release archive and six JSON records remain untouched in its existing ignored local review area. Existing Issue 7 deployment/release evidence is reused, not regenerated, modified or reclassified as an assistant-executed new deployment.
+
+<a id="3-secure-demo-credential-rotation-commands-prepared-not-executed"></a>
+## 3. Completed credential maintenance and security boundaries
+
+The explicit anchor preserves the existing Issue 7 link; its old “commands prepared, NOT EXECUTED” wording is historical. Earlier approved maintenance completed demo-password rotation/handoff and login verification. Recorded execution: workflow-rotate-demo-20261122103603-shtg6; demo-password versions 2 enabled and versions 1 disabled; JWT signing-secret version 1 retained. None of those operations was repeated for Issue 8.
+
+The public frontend and IAM-protected backend remain unchanged in access design. Only the same-image backend revision and traffic allocation changed. The internal token helper, service-scoped invocation, runtime identities, SQL attachment, secret references, port/resources/scaling and frontend/sidecar configuration were preserved.
+
+- Backend DATABASE_URL references workflow-database-url:2 and JWT_SECRET references workflow-jwt-secret:1; no inline values or secret payloads were accessed.
+- Backend port 8080, 1 CPU, 512 MiB and existing min/max settings were preserved.
+- Actual service/revision specifications and operational annotations were compared in memory, excluding only the intended restart marker and control-plane identity metadata; only safe hashes/references/results were retained.
+- Existing requester authentication on https://workflow-frontend-597719179612.asia-southeast1.run.app worked without another login. Cookies, tokens, Authorization headers and login payloads were not read or exported.
+- The older frontend alias identifies the same service but does not share host-scoped cookies. Earlier old-alias “Please sign in” observations are historical and do not contradict the working newer-host session.
+- GCP_DEPLOY_ENABLED remained false and was read back after verification. No deployment workflow was dispatched.
+
+## 4. Executed controlled backend replacement
+
+The user explicitly approved one staged same-image backend replacement, verified cutover and conditional traffic recovery. The following commands describe the completed operation; **do not rerun them without new authorization**.
+
+### 4.1 Exact identity, image and traffic
+
+| Item | Verified value |
+|---|---|
+| Old/recovery backend revision | workflow-backend-00004-sck |
+| New active backend revision | workflow-backend-issue8-20261124-130420 |
+| Before / staged / after traffic | Old 100% → old 100%, new 0% → new 100%, old 0% |
+| Frontend | workflow-frontend-00002-flx, 100%; configuration and IAM unchanged |
+| Released application SHA | 44a3fdaf0e3e056bc717f64c78c18a9cea53bc05, same in frontend/backend |
+| Execution-time old process | cb68bdc8-3490-4112-ad0d-b2dd90998cf5 |
+| New process | 4a944d9f-0494-4f5e-95b4-824b24acee5e |
+| Recovery executed | No; all final checks passed |
+
+Configured immutable index:
+
+~~~text
+asia-southeast1-docker.pkg.dev/cpe334-workflow-approval-2026/workflow-approval/backend@sha256:305715ebd9e76d6b31975940420952f2eac32388db154137a71dcddccc80a93c
+~~~
+
+Resolved platform image:
+
+~~~text
+asia-southeast1-docker.pkg.dev/cpe334-workflow-approval-2026/workflow-approval/backend@sha256:e8af7d686498cb4de5a49c2baba05ccf3c3530b443840c8685ca65c8b946e5dd
+~~~
+
+Both references are unchanged and match their respective OCI levels in the preserved run-5 artifact. A different index digest and platform digest are expected for this reviewed image structure; no image was rebuilt or uploaded.
+
+Earlier planning process IDs differed through normal process replacement/autoscaling within the same revision. The actual execution baseline above was recaptured. A changed UUID alone was not treated as restart proof: the new revision, same image/configuration, explicit traffic, service recovery and persisted record together establish the demonstrated backend process replacement.
+
+### 4.2 Commands and staged verification
+
+~~~powershell
 $ProjectId = 'cpe334-workflow-approval-2026'
 $Region = 'asia-southeast1'
-$RestartStamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
-# Read-only: record current image digest, ready revision and traffic first.
-gcloud run services describe workflow-backend --project=$ProjectId --region=$Region --format='yaml(status.latestReadyRevisionName,status.traffic,spec.template.spec.containers[0].image)'
-# Approval-only write: keep image, SQL attachment, identity, secrets and IAM.
-gcloud run services update workflow-backend --project=$ProjectId --region=$Region --container=backend --revision-suffix="restart-$RestartStamp" --update-env-vars="LAB5_RESTART_MARKER=$RestartStamp"
-if ($LASTEXITCODE -ne 0) { throw 'Stop: controlled backend replacement failed' }
-gcloud run services update-traffic workflow-backend --project=$ProjectId --region=$Region --to-latest
-if ($LASTEXITCODE -ne 0) { throw 'Stop: replacement traffic failed' }
-gcloud run services describe workflow-backend --project=$ProjectId --region=$Region --format='yaml(status.latestReadyRevisionName,status.traffic,spec.template.spec.containers[0].image)'
-Invoke-RestMethod https://workflow-frontend-wkjzb522ga-as.a.run.app/api/version
-```
+$OldRevision = 'workflow-backend-00004-sck'
+$NewRevision = 'workflow-backend-issue8-20261124-130420'
+$BackendImage = 'asia-southeast1-docker.pkg.dev/cpe334-workflow-approval-2026/workflow-approval/backend@sha256:305715ebd9e76d6b31975940420952f2eac32388db154137a71dcddccc80a93c'
+~~~
 
-Compare old/new instance IDs and revisions, require the same full release SHA and immutable image digest, and repeat the read-only business-record comparison. The next reviewed automated deployment removes this marker through the complete approved template. The commands above are not a database restart and were not executed here.
+Actual successful staging command:
 
-### 2.2 Automated redeployment evidence
+~~~powershell
+gcloud run services update workflow-backend --project=$ProjectId --region=$Region --revision-suffix=issue8-20261124-130420 --no-traffic --format=json --quiet --container=backend --image=$BackendImage --update-env-vars=LAB5_RESTART_MARKER=issue8-20261124-130420
+~~~
 
-After B, use the reviewed Issue 7 main-only deployment workflow, not a manual source deployment. Capture its successful run URL, exact released commit, immutable images and the visible application change. Compare A/B/C business fields, show C's backend/frontend version SHA equals the workflow's released SHA, and confirm the same Cloud SQL instance/database is attached. This actual redeploy remains approval-only; local tests cannot substitute for it.
+The installed CLI requires service-level options before the container selector. The first invocation rejected ordering locally with exit 2 before any API mutation. Read-back proved no candidate existed, the original runtime hash was unchanged and old traffic remained 100%; only argument ordering was corrected before the one actual revision creation. The failed parsing record is preserved locally.
 
-Run the previously established HTTP security checks as part of the approved new release verification: frontend `/` 200, frontend `/api/health` 200, direct unauthenticated backend `/api/health` 403, and frontend `/_backend_identity` 404. Preserve the private backend and public frontend; do not use a public backend as a test workaround.
+The candidate was checked READY with the same platform digest. Full runtime specification, scaling/SQL/secret annotations, user release labels, frontend and IAM were verified. Only LAB5_RESTART_MARKER and revision/control-plane identity differ.
 
-## 3. Secure demo-credential rotation (commands prepared, NOT EXECUTED)
+An initial strict label guard stopped before cutover because the no-traffic candidate lacked the provider-managed serving.knative.dev/route label present on the serving revision. Read-only diagnosis established identical runtime specification and operational annotations. Route/configuration-generation identity labels were then evaluated separately from actual traffic; all other configuration checks remained strict. Old traffic stayed 100% during diagnosis. No runtime setting was repaired or silently accepted, and no second candidate was created. The original guard observation is preserved.
 
-The existing create-only provisioning tool refuses existing accounts and is not a password-rotation mechanism. The new `server/prisma/rotate-demo-credentials.ts` updates only `passwordHash` on the two fixed existing demo accounts. It checks their REQUESTER/REVIEWER roles, locks both rows and commits one transaction; IDs, roles, timestamps and requests are preserved. It uses bcrypt cost 12, requires distinct fresh passwords (16 characters minimum, at most 72 UTF-8 bytes), and logs only fixed outcome messages. Before committing, it reads back both hashes internally and verifies them against the exact replacement values injected from the pinned new secret versions, plus unchanged account IDs/roles. Hashes and secret values are never printed. Both already-matching replacement versions are recognized without a write; a partially reused pair fails closed.
+Readiness inspection and the actual cutover:
 
-The runtime database role does **not** have UPDATE on `User.passwordHash`; do not expand it. Run this one-off tool through the existing `workflow-operations` service account using `workflow-migration-database-url`, whose schema-owner identity can update the accounts. Do not use the PostgreSQL administrator account. The operations image must be a **newly reviewed immutable image containing this tool**, not the old Issue 5 operations digest.
+~~~powershell
+gcloud run revisions describe $NewRevision --project=$ProjectId --region=$Region --format='yaml(metadata.name,status.conditions,spec.containers[0].image,status.imageDigest)'
+gcloud run services update-traffic workflow-backend --project=$ProjectId --region=$Region --to-revisions="$NewRevision=100" --format=json --quiet
+~~~
 
-Required future human permissions: read project/secret metadata, `secretmanager.versions.add` on the two existing demo-password secrets (resource-scoped `roles/secretmanager.secretVersionAdder`), Cloud Run job create/execute/read permissions, and `iam.serviceAccounts.actAs` on `workflow-operations`. Its existing Cloud SQL Client and four resource-level secret-access grants are reused. The CI deployment identity must not gain password-secret access, job-creation rights or migration-owner access for this operation.
+The current caller's service-update and backend-runtime actAs permissions had passed read-only tests. No IAM grant was added. Before and after cutover, the exact configuration and existing IAM policies matched; actual traffic was checked independently.
 
-First review and approve the released operations image digest and the rotation. Then execute, from the reviewed source checkout in a trusted local terminal with `gcloud` on PATH:
+### 4.3 Conditional recovery retained, not executed
 
-```powershell
-# Explicitly approved future write: fresh passwords go only through stdin to
-# two EXISTING Secret Manager secrets. No values are printed or written to files.
-python deploy/prepare-demo-rotation.py --approve-secret-writes
-```
+The approved fallback was routing to the exact old healthy revision:
 
-The helper checks the active project, project number and account, verifies both existing secrets, generates two independent cryptographic passwords in memory, and adds versions with `--data-file=-` without a trailing newline. It prints **only version numbers and public identifiers**. It neither executes the database tool nor retrieves secret values. If either version creation fails, stop, preserve the reported partial version IDs and involve the owner; do not recreate/delete resources or silently select `latest`.
+~~~powershell
+gcloud run services update-traffic workflow-backend --project=$ProjectId --region=$Region --to-revisions="$OldRevision=100"
+~~~
 
-Record the returned numeric versions, then prepare the one-off job command. These `Read-Host` prompts request public metadata, never credentials:
+It was not needed or executed. Old traffic was simply retained during pre-cutover guards. Recovery would not restore or modify database contents. The completed approval is not standing permission for future traffic changes, cleanup, another revision or another deployment.
 
-```powershell
-$ProjectId = 'cpe334-workflow-approval-2026'
-$Region = 'asia-southeast1'
-$OperationsImage = Read-Host 'Reviewed operations image reference ending @sha256:<64 hex>'
-$RequesterVersion = Read-Host 'New numeric workflow-requester-password version'
-$ReviewerVersion = Read-Host 'New numeric workflow-reviewer-password version'
-$RotationJob = 'workflow-rotate-demo-' + (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
-if ($OperationsImage -notmatch '^asia-southeast1-docker\.pkg\.dev/cpe334-workflow-approval-2026/workflow-approval/operations@sha256:[a-f0-9]{64}$') { throw 'Unapproved image reference' }
-if ($RequesterVersion -notmatch '^[1-9][0-9]*$' -or $ReviewerVersion -notmatch '^[1-9][0-9]*$') { throw 'Pin numeric versions' }
-if ([long]$RequesterVersion -le 1 -or [long]$ReviewerVersion -le 1) { throw 'Use the newly generated versions, never the exposed baseline version 1' }
+The old revision was retained. The non-secret marker remains on the new revision; removing it would create another change and is not part of this task. A later separately reviewed release can remove it through the existing deployment logic.
 
-# Inspect first. If the chosen job already exists, stop rather than overwrite it.
-gcloud run jobs list --project=$ProjectId --region=$Region --format='value(metadata.name)'
+## 5. Service recovery and read-only persistence verification
 
-# Approval-only commands below: create exactly one job, then execute it once.
-gcloud run jobs create $RotationJob `
-  --project=$ProjectId --region=$Region `
-  --image=$OperationsImage `
-  --service-account=workflow-operations@cpe334-workflow-approval-2026.iam.gserviceaccount.com `
-  --set-cloudsql-instances=cpe334-workflow-approval-2026:asia-southeast1:workflow-db `
-  --set-secrets="DATABASE_URL=workflow-migration-database-url:1,REQUESTER_PASSWORD=workflow-requester-password:${RequesterVersion},REVIEWER_PASSWORD=workflow-reviewer-password:${ReviewerVersion}" `
-  --set-env-vars=ROTATION_CONFIRMATION=rotate-existing-lab5-demo-accounts `
-  --command=node --args=--import,tsx,prisma/rotate-demo-credentials.ts `
-  --tasks=1 --parallelism=1 --max-retries=0 --cpu=1 --memory=512Mi --task-timeout=10m
-if ($LASTEXITCODE -ne 0) { throw 'Stop: rotation job creation failed' }
-
-gcloud run jobs execute $RotationJob --project=$ProjectId --region=$Region --wait
-if ($LASTEXITCODE -ne 0) { throw 'Stop: rotation execution failed; do not run live demonstrations' }
-
-gcloud run jobs executions list --job=$RotationJob --project=$ProjectId --region=$Region `
-  --format='table(metadata.name,status.completionTime,status.succeededCount,status.failedCount)'
-```
-
-Secret Manager version creation and PostgreSQL commit are not a distributed transaction. Creating new secret versions does not change account passwords. Use only the exact new version numbers emitted by the fresh-generation helper, not `latest` or the exposed baseline versions `1`. Keep the new versions marked **pending** in the operator's record until the job succeeds; do not disable previous versions or hand over the new passwords before the DB result is known. If the job fails, retain the new version numbers and stop; both DB updates should roll back together. A transport failure at commit can make the outcome uncertain: inspect the job's execution result before approving any retry; never create another pair merely to work around uncertainty. If Secret Manager returned an ambiguous creation outcome or an unexpected version-reference response, inspect version metadata first to identify what was created; do not automatically rerun the generator.
-
-After success, record only job/execution IDs, pinned version numbers and the non-sensitive user/request query above. The fresh values were checked not to match the previous hashes before replacement, and the new hashes were verified against the pinned replacement inputs before commit; therefore the previous exposed passwords no longer authenticate against those rows after successful rotation. Do not retrieve old passwords or add extra failed production-login attempts to the evidence. The isolated tests verify both old synthetic passwords are rejected and both new supplied values match. An authorized person can obtain the fresh passwords through Secret Manager's secure UI and transfer them directly to an approved password manager; never paste them into chat, screenshots, shell arguments or logs. Do not download service-account keys.
-
-**Session caveat:** password rotation does not revoke existing stateless JWT cookies. `server/src/auth.ts` issues tokens valid for one hour. Sign out the test browsers and wait until all pre-rotation tokens have expired before relying on session invalidation, or obtain separate explicit approval for a coordinated JWT-secret version change and backend revision rollout. Browser sign-out alone does not revoke another holder's token. No JWT-secret rotation or deployment is performed by this preparation.
-
-### 3.1 Approved retirement and failure recovery
-
-After successful hash read-back and approved secure handoff, the owner can separately approve retiring the two exposed demo-password version-1 payloads. Database hash replacement invalidates the old passwords; disablement prevents accidental old-secret reuse. Do not disable database URL or JWT version 1, which are unrelated runtime dependencies. Do not rerun historical provisioning jobs pinned to old demo versions. No retirement command was executed here.
-
-```powershell
-$RequesterState = gcloud secrets versions describe $RequesterVersion --secret=workflow-requester-password --project=$ProjectId --format='value(state)'
-if ($LASTEXITCODE -ne 0 -or $RequesterState -ne 'ENABLED') { throw 'New requester version is not enabled' }
-$ReviewerState = gcloud secrets versions describe $ReviewerVersion --secret=workflow-reviewer-password --project=$ProjectId --format='value(state)'
-if ($LASTEXITCODE -ne 0 -or $ReviewerState -ne 'ENABLED') { throw 'New reviewer version is not enabled' }
-# Separate owner approval, after the successful rotation execution is verified.
-gcloud secrets versions disable 1 --secret=workflow-requester-password --project=$ProjectId --quiet
-if ($LASTEXITCODE -ne 0) { throw 'Requester version retirement failed; stop' }
-gcloud secrets versions disable 1 --secret=workflow-reviewer-password --project=$ProjectId --quiet
-if ($LASTEXITCODE -ne 0) { throw 'Reviewer version retirement failed; stop' }
-```
-
-Recovery checks use metadata only, never secret values or password hashes:
-
-```powershell
-gcloud secrets versions list workflow-requester-password --project=$ProjectId --format='table(name,state,createTime)'
-gcloud secrets versions list workflow-reviewer-password --project=$ProjectId --format='table(name,state,createTime)'
-gcloud run jobs executions list --job=$RotationJob --project=$ProjectId --region=$Region --format='table(metadata.name,status.completionTime,status.succeededCount,status.failedCount)'
-```
-
-If secret creation partially fails before job execution, keep pending IDs and stop; no database operation occurred. An owner may approve generating a fresh complete pair while recording unused pending versions, instead of retrieving values to reconstruct a pair. If commit outcome is uncertain, do not create another pair or retire old versions. Inspect the existing execution first; any explicitly approved single retry must use the exact same immutable job/image and pinned versions. The tool recognizes both already-current values without updating hashes and rejects partial reuse. Never automatically retry a known success or change configuration to bypass failure. Old-password rejection is covered for both synthetic accounts; existing JWTs remain governed by the earlier session-expiry caveat.
-
-## 4. Evidence index and acceptance boundary
-
-All filenames below are **proposed and not captured** by this preparation. Keep originals free of passwords, hashes, cookies, tokens and secret values.
-
-| Proposed filename | Required content |
+| Check | Actual result |
 |---|---|
-| `20-persistence-before.png` | Newly approved unique marker and actual request ID with all saved business fields before restart; Request #1 can supplement |
-| `21-restart-instance-evidence.png` | Same digest/configuration, old/new ready revision and changed backend instance identifier; explain Cloud Run replacement semantics |
-| `22-persistence-after-restart.png` | Same business record and safe field comparison after replacement |
-| `23-automated-redeploy.png` | Successful main-only Issue 7 run, released SHA, image digest/revision record and visible change |
-| `24-persistence-after-redeploy.png` | Same request and user business fields after redeployment; running version matches released SHA |
-| `25-demo-rotation-result.png` | Successful one-shot rotation execution and public version IDs only; no secret contents or hashes |
+| Public frontend / | 200 |
+| Frontend /api/health | 200; status ok, database connected, read-only SELECT 1 through Prisma |
+| Frontend /version.json | 200; full SHA matches released main |
+| Frontend /api/version | Successful matching SHA/process check after cutover; final explicit HTTP 200 read-back |
+| Direct unauthenticated backend /api/health | 403 |
+| Frontend /_backend_identity | 404 |
+| Backend revision/process | New READY revision at 100%; changed process ID; same configured index/platform image |
+| Frontend / IAM / runtime settings | Unchanged |
+| Authenticated GET /api/requests/mine | Fresh R1 response; exactly one matching original Request 2; all nine fields equal A, R0 and execution-time before |
+| Database/request writes | None; no migrations, provisioning, seed, approval or request edit |
+| Deployment gate / extra deployment | false / none |
+| Conditional recovery | Not required |
 
-Mandatory live work remains: separately approved secure rotation before login; approval for exactly one uniquely marked persistence-request creation; A baseline capture; an actual controlled restart/replacement and B comparison; an actual automatic redeploy and C comparison; and final PDF evidence packaging. No production request has been created by this preparation. Existing WIF/CI success is reused, not repeated. Optional improvement: demonstrate the reviewed rollback/rollforward procedure from the Issue 7 runbook, preserving Cloud SQL and business data. A rollback is never a database reset or a reason to restore exposed credentials.
+The requester GET used the normal existing browser session. A unique query timestamp identified the fresh response; cached earlier JSON was not accepted. Only Request 2's nine fields were exported. No cookies, request headers, passwords, hashes, JWTs, secret payloads, HAR or raw authentication logs were collected.
 
-Rotation resource impact after approval: two new active versions on existing password secrets and one short-lived Cloud Run job execution (1 CPU, 512 MiB, at most 10 minutes, no retries). No additional SQL instance or database is needed. Secret-version and job execution prices are unverified and usage-dependent; no resources or versions were created by preparation.
+Windows PowerShell comparison used the exact field set and case-sensitive comparisons; equivalent validation also parsed the JSON and checked types/values:
+
+~~~powershell
+$Fields = @('id','title','description','status','requesterId','assignedReviewerId','reviewerId','createdAt','decidedAt')
+$Original = Get-Content -Raw .local/review/20-persistence-before.json | ConvertFrom-Json
+$Before = Get-Content -Raw .local/review/issue8-restart-before.json | ConvertFrom-Json
+$After = Get-Content -Raw .local/review/issue8-restart-after.json | ConvertFrom-Json
+if (@(Compare-Object $Fields @($After.PSObject.Properties.Name)).Count -ne 0) { throw 'Expected exactly nine business fields' }
+$Differences = @(foreach ($Field in $Fields) {
+  if ($Original.$Field -cne $After.$Field -or $Before.$Field -cne $After.$Field) { $Field }
+})
+if ($Differences.Count) { throw ('Persistence mismatch: ' + ($Differences -join ', ')) }
+'PASS: all nine selected Request 2 fields unchanged'
+~~~
+
+No full application test suite, build or CI deployment was rerun for this operational check. Relevant local checks cover JSON equality/types, original/new evidence hashes and image integrity, credential-pattern scan, Markdown links/anchors, command syntax, allowed Git scope and git diff --check.
+
+## 6. Evidence index and integrity
+
+| Evidence | Caption / actual coverage |
+|---|---|
+| [20-persistence-before.png](evidence/20-persistence-before.png) | Original A before both events, requester/marker/description/PENDING/displayed creation time; exact ID/nulls/UTC milliseconds from original nine-field JSON |
+| [20a-persistence-pre-restart.jpg](evidence/20a-persistence-pre-restart.jpg) | Fresh R0 saved 24 November 2026 13:03:32.172 UTC; URL/REQUESTER/full marker and description/PENDING/time, corroborated by fresh GET at 13:04:20.074 UTC |
+| [issue08-pre-restart.json](evidence/issue08-pre-restart.json) | Exactly nine R0 business fields, matching original A |
+| [22-persistence-after-restart.jpg](evidence/22-persistence-after-restart.jpg) | Fresh page after cutover, saved 13:42:41.378 UTC; public URL/REQUESTER/original marker/description/PENDING/time; backend workflow-backend-issue8-20261124-130420 and release SHA above established by verification JSON |
+| [issue08-post-restart.json](evidence/issue08-post-restart.json) | Exactly nine R1 fields from fresh GET observed 13:41:09.834 UTC; all equal A/R0/execution baseline |
+| [issue08-restart-verification.json](evidence/issue08-restart-verification.json) | Machine-readable actual commands/times, old/new revisions/traffic/processes, image/source identity, HTTP/privacy results, nine-field comparisons, hashes and no-recovery result |
+| [Issue 7 post-redeployment screenshot](evidence/Issue7_Persistence_After_Automated_Deployment.png) | Historical D UI observation, reused; does not alone prove hidden field equality |
+| [Issue 7 deployment success](evidence/Issue7_Automated_Deployment_Success.png), [original verification JSON](evidence/issue07-final-verification.json) and [run 45314206420](https://github.com/tm-georgia/workflow-and-approval-system/actions/runs/45314206420) | Existing successful automated redeployment of the same released application; no repeat run |
+| Existing ignored local review records | Original A, R0, fresh execution-time before, R1, operation/revalidation records and prepared plan; no secrets; excluded from Git |
+
+Both new screenshots are genuine native JPEG captures at 1280 by 752 without conversion or editing. Their public URL, requester role, marker, description/status and timestamp are readable. No visible credentials or secret payloads were found. Original PNG and JSON remain unchanged.
+
+SHA-256 integrity:
+
+| Artifact | SHA-256 |
+|---|---|
+| Original PNG | d6e9061165aed242d93263d633eca82021b2f0b499fe3201265085d97004ef9d |
+| Fresh R0 JPEG | cdb173e380b14b4a487e1e2414864fd5e573c1d2d03b9cdd9191f5dd2a35591a |
+| R1 JPEG | 29d848a6ebe1343f19aea5e50d5af34255106cd6ecea81bce97292395e641afa |
+| Original A / public R0 / public R1 JSON | e54ba54b35320f4755cee1787bc74de1fb300764253aed39d1daf9b8536ff5bf |
+
+The old proposed 21-restart-instance-evidence.png was not captured and is not invented. The actual verification JSON supplies revision/process/command evidence; the handout's required before/after application screenshots are present. Future/proposed filenames are not linked as existing evidence.
+
+## 7. Issue 41 checklist, acceptance and remaining publication work
+
+All ten tasks have evidence support, are checked complete remotely, and Issue #41 is closed after PR #42 integration. The earlier 0/10 preparation state below is superseded; the table records the evidence for each completed task.
+
+| Task | Local evidence assessment |
+|---|---|
+| 1. Verify persistent Cloud SQL configuration | PASS: existing instance/database, attachment and actual database-backed reads |
+| 2. Identify earlier baseline request | PASS: Request 2, original marker and createdAt |
+| 3. Verify before restart | PASS: A, fresh R0 and execution-time nine-field match |
+| 4. Verify restart and recovery | PASS: new same-image backend revision/process, READY/100% and recovered health |
+| 5. Verify same record after restart | PASS: fresh R1 GET and after screenshot |
+| 6. Verify successful automated redeployment | PASS: existing successful Issue 7 run reused |
+| 7. Verify same record after redeployment | PASS: historical D UI evidence and fresh post-D exact API comparison |
+| 8. Compare fields/status across stages | PASS: all nine selected fields equal A/R0/execution-before/R1; historical D screenshot's coverage stated honestly |
+| 9. Collect/validate screenshots and deployment evidence | PASS: actual before/after, reused D, operation JSON, hashes and captions |
+| 10. Document procedure/results in deployment.md | PASS: completed results, chronology, commands and evidence in this runbook and deployment overview |
+
+All Issue 41 acceptance criteria are satisfied for the tested record: persistent Cloud SQL; record survives restart and redeployment; selected fields/status unchanged; evidence documented; no production business data intentionally written or reset. No claim of full database-wide equality is made.
+
+**Operational blockers: none for the demonstrated scenario.** PR #42's specific pre-merge review, all three passing CI checks, documentation integration, 10/10 checklist update and closure are complete. An authorized project maintainer must confirm/set Done because this token lacks project access. The team will prepare captioned Answer Part 3 evidence in its separate Google Docs report. Issue 7's historical R-09 qualification and Issue 1's unresolved access-method compliance remain explicit; no new issue, PDF or production operation is created.
+
+The production verification session performed no commit, push, PR, merge or issue closure. Subsequent documentation publication is separately authorized and does not alter the preserved verification evidence. No further cloud operation is needed merely to complete R-04/C-05.

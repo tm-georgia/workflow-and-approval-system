@@ -1,0 +1,11 @@
+{
+  "id": 2,
+  "title": "LAB5-ISSUE8-PERSIST-20261122T122806Z-a3b38646",
+  "description": "Issue 8 persistence baseline. Keep this request PENDING and unchanged for application restart and automated redeployment verification.",
+  "status": "PENDING",
+  "requesterId": 1,
+  "assignedReviewerId": 2,
+  "reviewerId": null,
+  "createdAt": "2026-11-22T12:30:00.973Z",
+  "decidedAt": null
+}

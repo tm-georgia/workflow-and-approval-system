@@ -89,8 +89,8 @@ export default function ReviewerWorkspace() {
         <ul className="request-list">
           {requests.map((item) => (
             <li key={item.id}>
-              <h3>#{item.id} <span>{item.title}</span></h3>
-              <p>{item.description}</p>
+              <h3>#{item.id} <span className="request-title">{item.title}</span></h3>
+              <p className="request-description">{item.description}</p>
               <p><small>Submitted {new Date(item.createdAt).toLocaleString()}</small></p>
               <div className="review-actions">
                 <button type="button" aria-label={`Approve request #${item.id}`} disabled={processing !== null || loading} onClick={() => void decide(item.id, "APPROVED")}>Approve</button>
