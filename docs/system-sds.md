@@ -35,7 +35,7 @@ F-04 adds decision reasons and an ordered review-history entity (or equivalent).
 |---|---|
 | Sign-in | Email/password form; show/hide password; safe invalid-login message. |
 | Requester workspace | Submit title/description and view only the signed-in Requester's requests and statuses. Show loading, empty, save-success, and safe error states. |
-| Reviewer workspace | Show only assigned, non-self-owned pending requests; allow approve/reject; show loading, empty, success, error, and retry states; suppress duplicate submissions. |
+| Requester workspace | Submit title/description and view only the signed-in Requester's requests and statuses. Show loading, empty, submission-success, and safe error states. A successful submission remains successful if the subsequent history refresh fails. Display a separate history-refresh warning and provide a manual retry action with loading feedback. A successful retry updates the displayed history and clears the warning; a failed retry preserves previously displayed history and keeps the warning visible. Retrying history must not submit another request. |
 | Current-user loading | Client obtains identity from GET /api/auth/me; it never chooses a role or owner ID. |
 
 ## 5. API conventions
