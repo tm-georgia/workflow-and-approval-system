@@ -5,8 +5,8 @@ Each baseline requirement is assigned to a feature and sprint. Sprint 1 rows ide
 | Requirement | Feature | Sprint | Planned verification / current evidence |
 |---|---|---|---|
 | FR-01 | F-01 | 1 | F-01 AC-01–AC-06; login, invalid login, current identity, logout, and protected access tests in server/test/requests.test.ts. |
-| FR-02, BR-01 | F-02 | 1 | F-02 AC-01/05; backend TEST-03 verifies saved PENDING request; UI submission journey is TEST-UI-01. |
-| FR-03, BR-02 | F-02 | 1 | F-02 AC-02–04; requester ownership and cross-requester privacy API tests, including TEST-F02-OWNERSHIP. |
+| FR-02, BR-01 | F-02 | 1 | F-02 AC-01, AC-05–AC-07; backend TEST-03 verifies saved PENDING request; UI submission journey is TEST-UI-01; TEST-06 verifies that successful submission remains acknowledged when history refresh fails. |
+| FR-03, BR-02 | F-02 | 1 | F-02 AC-02–AC-04 and AC-08–AC-11; requester ownership/privacy API tests, plus TEST-06–TEST-10 for history-refresh warning, retry, loading feedback, and history recovery. |
 | FR-04, BR-03, BR-05 | F-03 | 1 | F-03 AC-01/10; assigned queue, wrong-role/unassigned Reviewer, and server-assignment tests in server/test/reviewer.test.ts. |
 | FR-05, BR-04, BR-06 | F-03 | 1 | F-03 AC-02/03/05–08/11; approval/rejection, wrong-role, self-approval, repeat, invalid, and concurrent-decision tests. |
 | FR-06 | F-03 | 1 | F-03 AC-04; database read-back, Requester retrieval, and built-server restart smoke check. |
