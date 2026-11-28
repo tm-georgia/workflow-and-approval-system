@@ -24,6 +24,16 @@ describe("F-02/F-03 Requester integration UI evidence", () => {
     expect(screen.getByLabelText("Description")).toHaveValue("");
   });
 
+  it("shows the owner the rejection reason from the retrieved history", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (path) => path === "/api/auth/me"
+      ? response({ id: 2, email: "requester@example.test", role: "REQUESTER" })
+      : response([{ id: 4, title: "Equipment", description: "New keyboard", status: "REJECTED",
+          createdAt: "2026-11-12T00:00:00Z",
+          history: [{ id: 1, action: "REJECTED", reason: "Exceeds department budget" }] }])));
+    render(<App />);
+    expect(await screen.findByText("Exceeds department budget")).toBeInTheDocument();
+  });
+
   it("TEST-F03-UI-OWNER: displays the retrieved decision and its minimum history metadata", async () => {
     vi.stubGlobal("fetch", vi.fn(async (path) => path === "/api/auth/me"
       ? response({ id: 2, email: "requester@example.test", role: "REQUESTER" })

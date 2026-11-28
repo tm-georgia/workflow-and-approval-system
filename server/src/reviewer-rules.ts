@@ -1,4 +1,4 @@
-export type Decision = "APPROVED" | "REJECTED";
+export type Decision = "APPROVED" | "REJECTED" | "RETURNED";
 
 export function parseRequestId(value: unknown): number | null {
   if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return null;
@@ -7,7 +7,7 @@ export function parseRequestId(value: unknown): number | null {
 }
 
 export function isDecision(value: unknown): value is Decision {
-  return value === "APPROVED" || value === "REJECTED";
+  return value === "APPROVED" || value === "REJECTED" || value === "RETURNED";
 }
 
 export function mayReview(

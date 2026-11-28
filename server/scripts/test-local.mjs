@@ -38,6 +38,11 @@ const env = {
 let startupAttempted = false;
 const args = process.argv.slice(2);
 const checkStartupTimeout = args.includes("--check-startup-timeout");
+const restrictedReview = args.includes("--restricted-review");
+function psql(name, role, sql) {
+  run(name, pgCommand("psql"), ["-X", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1",
+    "-p", String(port), "-U", role, "-d", "postgres", "-c", sql]);
+}
 function run(name, command, args) {
   const log = path.join(runDir, name + ".log");
   const fd = openSync(log, "w");
@@ -78,9 +83,45 @@ try {
     throw error;
   }
   if (checkStartupTimeout) throw new Error("Startup-timeout exercise: checking cleanup without running application tests.");
+  if (restrictedReview) {
+    psql("create-test-roles", "workflow_test", `
+      CREATE ROLE workflow_migrator LOGIN;
+      CREATE ROLE workflow_runtime LOGIN;
+      ALTER SCHEMA public OWNER TO workflow_migrator;
+    `);
+    env.DATABASE_URL = `postgresql://workflow_migrator@127.0.0.1:${port}/postgres`;
+  }
   run("migrations", process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"]);
   run("seed", process.execPath, ["--import", "tsx", "prisma/seed.ts"]);
-  run("tests", process.execPath, ["node_modules/vitest/vitest.mjs", "run", ...args.filter((arg) => arg !== "--smoke")]);
+  if (restrictedReview) {
+    // Reproduce the deployed Sprint 1 object grants before applying the F-04 delta.
+    psql("baseline-grants", "workflow_migrator", `
+      GRANT USAGE ON SCHEMA public TO workflow_runtime;
+      GRANT SELECT, INSERT ON public."User", public."Request" TO workflow_runtime;
+      GRANT UPDATE (status, "reviewerId", "decidedAt") ON public."Request" TO workflow_runtime;
+      GRANT USAGE ON SEQUENCE public."User_id_seq", public."Request_id_seq" TO workflow_runtime;
+    `);
+    const privileges = `SELECT current_user, rolsuper, pg_get_serial_sequence('public."ReviewEvent"', 'id') AS sequence,
+      has_table_privilege('public."ReviewEvent"', 'SELECT') AS can_read,
+      has_table_privilege('public."ReviewEvent"', 'INSERT') AS can_insert,
+      has_table_privilege('public."ReviewEvent"', 'UPDATE') AS can_update,
+      has_table_privilege('public."ReviewEvent"', 'DELETE') AS can_delete,
+      has_sequence_privilege('public."ReviewEvent_id_seq"', 'USAGE') AS sequence_usage,
+      has_sequence_privilege('public."ReviewEvent_id_seq"', 'UPDATE') AS sequence_update
+      FROM pg_roles WHERE rolname = current_user`;
+    psql("before-event-grants", "workflow_runtime", privileges);
+    run("event-grants", process.execPath, ["node_modules/prisma/build/index.js", "db", "execute",
+      "--config", "prisma7.config.ts", "--file", "prisma/grants/review-event.sql"]);
+    run("resubmit-grants", process.execPath, ["node_modules/prisma/build/index.js", "db", "execute",
+      "--config", "prisma7.config.ts", "--file", "prisma/grants/resubmit.sql"]);
+    env.DATABASE_URL = `postgresql://workflow_runtime@127.0.0.1:${port}/postgres`;
+    psql("after-event-grants", "workflow_runtime", privileges);
+    run("restricted-review-tests", process.execPath, ["node_modules/vitest/vitest.mjs", "run",
+      "test/reviewer.test.ts", "-t", "F04-REJ-T0[123]|F05-T0[12456]", "--reporter=verbose"]);
+    psql("saved-event", "workflow_runtime", 'SELECT current_user, id, "requestId", action, reason FROM public."ReviewEvent" ORDER BY id');
+  } else {
+    run("tests", process.execPath, ["node_modules/vitest/vitest.mjs", "run", ...args.filter((arg) => arg !== "--smoke")]);
+  }
   if (args.includes("--smoke")) run("production-smoke", process.execPath, ["scripts/smoke.mjs"]);
 } catch (error) {
   console.error(error.message);

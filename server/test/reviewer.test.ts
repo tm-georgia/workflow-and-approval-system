@@ -8,6 +8,7 @@ import { app } from "../src/app";
 import { prisma } from "../src/prisma";
 
 const password = "SyntheticF03TestOnly!";
+const rejectionReason = "Budget limit exceeded";
 const owner = request.agent(app);
 const reviewer = request.agent(app);
 const unrelated = request.agent(app);
@@ -35,8 +36,8 @@ afterAll(async () => { await prisma.$disconnect(); });
 function createPending(assignedReviewerId: number | null = reviewerId, requesterId = ownerId) {
   return prisma.request.create({ data: { title: "Synthetic F03 request", description: "Review integration fixture", requesterId, assignedReviewerId } });
 }
-function decide(agent: typeof reviewer, id: number | string, decision: unknown = "APPROVED") {
-  return agent.patch(`/api/requests/${id}/decision`).send({ decision });
+function decide(agent: typeof reviewer, id: number | string, decision: unknown = "APPROVED", reason?: string) {
+  return agent.patch(`/api/requests/${id}/decision`).send({ decision, reason });
 }
 
 describe("F-03 real API/PostgreSQL workflow", () => {
@@ -57,7 +58,8 @@ describe("F-03 real API/PostgreSQL workflow", () => {
   it.each(["APPROVED", "REJECTED"])("TEST-F03-02/03/04: persists %s with session identity and owner retrieval", async (decision) => {
     const pending = await createPending();
     const before = Date.now();
-    const result = await reviewer.patch(`/api/requests/${pending.id}/decision`).send({ decision, reviewerId: unrelatedId, requesterId: unrelatedId, assignedReviewerId: unrelatedId, decidedAt: "2000-01-01" }).expect(200);
+    const reason = decision === "REJECTED" ? rejectionReason : undefined;
+    const result = await reviewer.patch(`/api/requests/${pending.id}/decision`).send({ decision, reason, reviewerId: unrelatedId, requesterId: unrelatedId, assignedReviewerId: unrelatedId, decidedAt: "2000-01-01" }).expect(200);
     expect(result.body).toMatchObject({ id: pending.id, status: decision, reviewerId, requesterId: ownerId, assignedReviewerId: reviewerId });
     expect(Date.parse(result.body.decidedAt)).toBeGreaterThanOrEqual(before);
     expect(Date.parse(result.body.decidedAt)).toBeLessThanOrEqual(Date.now());
@@ -84,7 +86,8 @@ describe("F-03 real API/PostgreSQL workflow", () => {
 
   it.each(["APPROVED", "REJECTED"])("TEST-F03-06: refuses to replace an existing %s decision", async (first) => {
     const pending = await createPending();
-    await decide(reviewer, pending.id, first).expect(200);
+    const reason = first === "REJECTED" ? rejectionReason : undefined;
+    await decide(reviewer, pending.id, first, reason).expect(200);
     const saved = await prisma.request.findUnique({ where: { id: pending.id } });
     await decide(reviewer, pending.id, first === "APPROVED" ? "REJECTED" : "APPROVED").expect(409);
     expect(await prisma.request.findUnique({ where: { id: pending.id } })).toEqual(saved);
@@ -119,7 +122,7 @@ describe("F-03 real API/PostgreSQL workflow", () => {
       locked = true;
       await blocker.query('SELECT "id" FROM "Request" WHERE "id" = $1 FOR UPDATE', [pending.id]);
       const lockOwner = (await blocker.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0].pid;
-      resultsPromise = Promise.all([decide(reviewer, pending.id, "APPROVED"), decide(reviewer, pending.id, "REJECTED")]);
+      resultsPromise = Promise.all([decide(reviewer, pending.id, "APPROVED"), decide(reviewer, pending.id, "REJECTED", rejectionReason)]);
       // Observe both actual UPDATE sessions waiting, including indirect tuple-lock
       // waiters. Ordinary reads can see Pending while this row lock is held.
       void resultsPromise.catch(() => {});
@@ -156,6 +159,12 @@ describe("F-03 real API/PostgreSQL workflow", () => {
     expect(saved.status).toBe(winner.body.status);
     expect(saved.reviewerId).toBe(reviewerId);
     expect(saved.decidedAt?.toISOString()).toBe(winner.body.decidedAt);
+    const events = await prisma.reviewEvent.findMany({ where: { requestId: pending.id } });
+    if (winner.body.status === "REJECTED") {
+      expect(events).toMatchObject([{ actorId: reviewerId, reason: rejectionReason }]);
+    } else {
+      expect(events).toEqual([]);
+    }
   }, 15000);
 
   it("TEST-F03-10: unrelated Reviewers cannot list or decide another assignment", async () => {
@@ -163,6 +172,7 @@ describe("F-03 real API/PostgreSQL workflow", () => {
     const list = await unrelated.get("/api/requests/pending").expect(200);
     expect(list.body.map((item: { id: number }) => item.id)).not.toContain(pending.id);
     const denied = await decide(unrelated, pending.id).expect(403);
+    await decide(unrelated, pending.id, "REJECTED").expect(403);
     expect(denied.body).toEqual({ error: expect.any(String) });
     expect(await prisma.request.findUnique({ where: { id: pending.id } })).toEqual(pending);
     const legacy = await createPending(null);
@@ -248,4 +258,262 @@ describe("F-03 real API/PostgreSQL workflow", () => {
     await owner.post("/api/requests").send(input).expect(400);
     expect(await prisma.request.count()).toBe(before);
   });
+});
+
+const returnReason = "Please include an itemized cost breakdown in the description";
+const corrections = { title: "Revised purchase", description: "Two desks at 150 each, total 300." };
+
+async function createReturned() {
+  const pending = await createPending();
+  await decide(reviewer, pending.id, "RETURNED", returnReason).expect(200);
+  return pending;
+}
+
+function resubmit(agent: typeof owner, id: number, fields: object = corrections) {
+  return agent.patch(`/api/requests/${id}/resubmit`).send(fields);
+}
+
+async function ownerRead(id: number) {
+  const mine = await owner.get("/api/requests/mine").expect(200);
+  return mine.body.find((item: { id: number }) => item.id === id);
+}
+
+it("F05-T01 returns a pending request with the trimmed reason", async () => {
+  const pending = await createPending();
+  const result = await decide(reviewer, pending.id, "RETURNED", `  ${returnReason}  `).expect(200);
+  const saved = await ownerRead(pending.id);
+  expect(saved).toMatchObject({ status: "RETURNED", reviewerId, decidedAt: result.body.decidedAt });
+  expect(saved.history).toEqual([{
+    id: expect.any(Number), requestId: pending.id, action: "RETURNED", actorId: reviewerId,
+    reason: returnReason, occurredAt: result.body.decidedAt,
+  }]);
+  const queue = await reviewer.get("/api/requests/pending").expect(200);
+  expect(queue.body.map((item: { id: number }) => item.id)).not.toContain(pending.id);
+});
+
+it("F05-T02 resubmits the same corrected request and retains its return event", async () => {
+  const pending = await createReturned();
+  const before = await ownerRead(pending.id);
+  await resubmit(owner, pending.id, {
+    title: `  ${corrections.title}  `, description: `  ${corrections.description}  `,
+    requesterId: unrelatedId, assignedReviewerId: unrelatedId, actorId: unrelatedId,
+  }).expect(200);
+  const saved = await ownerRead(pending.id);
+  expect(saved).toMatchObject({ id: pending.id, ...corrections, createdAt: pending.createdAt.toISOString(),
+    requesterId: ownerId, assignedReviewerId: reviewerId, status: "PENDING", reviewerId: null, decidedAt: null });
+  expect(saved.history).toEqual([before.history[0], {
+    id: expect.any(Number), requestId: pending.id, actorId: ownerId, action: "RESUBMITTED",
+    occurredAt: expect.any(String), reason: null,
+  }]);
+  const queue = await reviewer.get("/api/requests/pending").expect(200);
+  expect(queue.body).toContainEqual(expect.objectContaining({ id: pending.id, ...corrections }));
+});
+
+function snapshot(id: number) {
+  return prisma.request.findUniqueOrThrow({ where: { id }, include: { history: { orderBy: { id: "asc" } } } });
+}
+
+it("F05-T04 rejects invalid reasons and corrections without saving changes", async () => {
+  const pending = await createPending();
+  const returned = await createReturned();
+  const initial = await snapshot(pending.id);
+  const beforeEdit = await snapshot(returned.id);
+  for (const invalid of [undefined, "", " \t\n", 42]) {
+    await reviewer.patch(`/api/requests/${pending.id}/decision`).send({ decision: "RETURNED", reason: invalid }).expect(400);
+    expect(await snapshot(pending.id)).toEqual(initial);
+    for (const field of ["title", "description"]) {
+      await resubmit(owner, returned.id, { ...corrections, [field]: invalid }).expect(400);
+      expect(await snapshot(returned.id)).toEqual(beforeEdit);
+    }
+  }
+});
+
+it("F05-T05 enforces session, assignment, role and owner checks before exposing request details", async () => {
+  const pending = await createPending();
+  const self = await createPending(selfId, selfId);
+  const returned = await createReturned();
+  const stranger = request.agent(app);
+  await stranger.post("/api/auth/login").send({ email: "requester@example.test", password: "RequesterDemo334!" }).expect(200);
+  const signedOut = request.agent(app);
+  const ids = [pending.id, self.id, returned.id];
+  const before = await Promise.all(ids.map(snapshot));
+  for (const [agent, id, status] of [
+    [signedOut, pending.id, 401], [owner, pending.id, 403],
+    [unrelated, pending.id, 403], [selfReviewer, self.id, 403],
+  ] as const) {
+    const denied = await decide(agent, id, "RETURNED", returnReason).expect(status);
+    expect(denied.body).toEqual({ error: expect.any(String) });
+  }
+  for (const [agent, status] of [[signedOut, 401], [reviewer, 403], [stranger, 403]] as const) {
+    const denied = await resubmit(agent, returned.id, {}).expect(status);
+    expect(denied.body).toEqual({ error: expect.any(String) });
+  }
+  const mine = await stranger.get("/api/requests/mine").expect(200);
+  expect(mine.body.map((item: { id: number }) => item.id)).not.toContain(returned.id);
+  expect(mine.text).not.toContain(returnReason);
+  expect(await Promise.all(ids.map(snapshot))).toEqual(before);
+});
+
+it("F05-T06 rejects invalid workflow states without changing the record or history", async () => {
+  const pending = await createPending();
+  const returned = await createReturned();
+  const approved = await createPending();
+  const rejected = await createPending();
+  await decide(reviewer, approved.id, "APPROVED").expect(200);
+  await decide(reviewer, rejected.id, "REJECTED", rejectionReason).expect(200);
+  for (const id of [returned.id, approved.id, rejected.id]) {
+    const before = await snapshot(id);
+    await decide(reviewer, id, "RETURNED", returnReason).expect(409);
+    expect(await snapshot(id)).toEqual(before);
+  }
+  for (const id of [pending.id, approved.id, rejected.id]) {
+    const before = await snapshot(id);
+    await resubmit(owner, id).expect(409);
+    expect(await snapshot(id)).toEqual(before);
+  }
+});
+
+it("F05-T06 concurrent returns and concurrent resubmissions each append exactly one event", async () => {
+  const pending = await createPending();
+  const returns = await Promise.all(["First reason", "Second reason"].map(reason => decide(reviewer, pending.id, "RETURNED", reason)));
+  expect(returns.map(r => r.status).sort()).toEqual([200, 409]);
+  const returned = await snapshot(pending.id);
+  expect(returned.history).toMatchObject([{ action: "RETURNED", reason: returns[0].status === 200 ? "First reason" : "Second reason" }]);
+
+  const edits = await Promise.all(["First edit", "Second edit"].map(title => resubmit(owner, pending.id, { ...corrections, title })));
+  expect(edits.map(r => r.status).sort()).toEqual([200, 409]);
+  const saved = await snapshot(pending.id);
+  expect(saved.title).toBe(edits[0].status === 200 ? "First edit" : "Second edit");
+  expect(saved.history).toEqual([returned.history[0], expect.objectContaining({ action: "RESUBMITTED", actorId: ownerId })]);
+  await resubmit(owner, pending.id).expect(409);
+  expect(await snapshot(pending.id)).toEqual(saved);
+});
+
+it("F05-T07 rolls back both transitions if their event insert fails", async () => {
+  const pending = await createPending();
+  const returned = await createReturned();
+  const beforeReturn = await snapshot(pending.id);
+  const beforeEdit = await snapshot(returned.id);
+  await prisma.$executeRaw`ALTER TABLE "ReviewEvent" ADD CONSTRAINT "test_refuse_f05_event"
+    CHECK ("action"::text <> 'RESUBMITTED' AND "reason" IS DISTINCT FROM 'Roll back return') NOT VALID`;
+  try {
+    await decide(reviewer, pending.id, "RETURNED", "Roll back return").expect(500);
+    expect(await snapshot(pending.id)).toEqual(beforeReturn);
+    await resubmit(owner, returned.id).expect(500);
+    expect(await snapshot(returned.id)).toEqual(beforeEdit);
+  } finally {
+    await prisma.$executeRaw`ALTER TABLE "ReviewEvent" DROP CONSTRAINT "test_refuse_f05_event"`;
+  }
+});
+
+it("F04-REJ-T01 returns the trimmed rejection reason in the owner's history", async () => {
+  const pending = await createPending();
+  const decision = await decide(reviewer, pending.id, "REJECTED", `  ${rejectionReason}  `).expect(200);
+  const mine = await owner.get("/api/requests/mine").expect(200);
+  const saved = mine.body.find((item: { id: number }) => item.id === pending.id);
+  expect(saved).toMatchObject({ status: "REJECTED", reviewerId });
+  expect(saved.history).toEqual([{
+    id: expect.any(Number), requestId: pending.id, action: "REJECTED",
+    actorId: reviewerId, occurredAt: decision.body.decidedAt, reason: rejectionReason,
+  }]);
+});
+
+it("F04-REJ-T03 preserves the request and history when an unassigned Reviewer rejects", async () => {
+  const pending = await createPending();
+  await decide(unrelated, pending.id, "REJECTED", rejectionReason).expect(403);
+  expect(await prisma.request.findUniqueOrThrow({ where: { id: pending.id } })).toEqual(pending);
+  expect(await prisma.reviewEvent.count({ where: { requestId: pending.id } })).toBe(0);
+});
+
+it("a repeated rejection preserves the original event and its reason", async () => {
+  const pending = await createPending();
+  await decide(reviewer, pending.id, "REJECTED", rejectionReason).expect(200);
+  const where = { requestId: pending.id };
+  const original = await prisma.reviewEvent.findMany({ where });
+  expect(original).toHaveLength(1);
+  await decide(reviewer, pending.id, "REJECTED", "Second reason").expect(409);
+  expect(await prisma.reviewEvent.findMany({ where })).toEqual(original);
+});
+
+it("only the owning Requester can read the saved rejection reason from /mine", async () => {
+  const pending = await createPending();
+  const reason = `Private reason for request ${pending.id}`;
+  await decide(reviewer, pending.id, "REJECTED", reason).expect(200);
+  const mine = await owner.get("/api/requests/mine").expect(200);
+  expect(mine.text).toContain(reason);
+
+  const stranger = request.agent(app);
+  await stranger.post("/api/auth/login").send({ email: "requester@example.test", password: "RequesterDemo334!" }).expect(200);
+  const others = await stranger.get("/api/requests/mine").query({ requesterId: ownerId }).expect(200);
+  expect(others.body.map((item: { id: number }) => item.id)).not.toContain(pending.id);
+  expect(others.text).not.toContain(reason);
+  const forbidden = await unrelated.get("/api/requests/mine").expect(403);
+  expect(forbidden.text).not.toContain(reason);
+  const signedOut = await request(app).get("/api/requests/mine").expect(401);
+  expect(signedOut.text).not.toContain(reason);
+});
+
+it("rolls back the decision if PostgreSQL refuses the event insert", async () => {
+  const pending = await createPending();
+  const reason = "Synthetic event insert failure";
+  // Limit the simulated write failure to this reason in the disposable test database.
+  await prisma.$executeRaw`ALTER TABLE "ReviewEvent" ADD CONSTRAINT "test_refuse_event"
+    CHECK ("reason" <> 'Synthetic event insert failure') NOT VALID`;
+  try {
+    await decide(reviewer, pending.id, "REJECTED", reason).expect(500, { error: "Could not save the decision." });
+    expect(await prisma.request.findUniqueOrThrow({ where: { id: pending.id } })).toEqual(pending);
+    expect(await prisma.reviewEvent.count({ where: { requestId: pending.id } })).toBe(0);
+  } finally {
+    await prisma.$executeRaw`ALTER TABLE "ReviewEvent" DROP CONSTRAINT "test_refuse_event"`;
+  }
+});
+
+it("reads request events oldest first and breaks timestamp ties by event ID", async () => {
+  const pending = await createPending();
+  const rejection = await decide(reviewer, pending.id, "REJECTED", rejectionReason).expect(200);
+  const earlier = new Date(Date.parse(rejection.body.decidedAt) - 1000);
+  const data = { requestId: pending.id, actorId: reviewerId, action: "REJECTED" as const, occurredAt: earlier };
+  // Seed earlier history so insert order differs from the requested chronology.
+  const first = await prisma.reviewEvent.create({ data: { ...data, reason: "First event" } });
+  const second = await prisma.reviewEvent.create({ data: { ...data, reason: "Second event" } });
+  const mine = await owner.get("/api/requests/mine").expect(200);
+  const saved = mine.body.find((item: { id: number }) => item.id === pending.id);
+  expect(saved.history).toMatchObject([{ id: first.id }, { id: second.id }, { reason: rejectionReason }]);
+});
+
+it("keeps Sprint 1 decision metadata readable without inventing a history event", async () => {
+  const decidedAt = new Date("2026-11-12T01:00:00Z");
+  const legacy = await prisma.request.create({ data: {
+    title: "Legacy rejection", description: "Sprint 1 decision", requesterId: ownerId,
+    status: "REJECTED", reviewerId, decidedAt,
+  } });
+  const mine = await owner.get("/api/requests/mine").expect(200);
+  const saved = mine.body.find((item: { id: number }) => item.id === legacy.id);
+  expect(saved).toMatchObject({ status: "REJECTED", reviewerId, decidedAt: decidedAt.toISOString(), history: [] });
+});
+
+it("F04-REJ-T02 rejects a rejection without a reason", async () => {
+  const pending = await createPending();
+  const response = await reviewer.patch(`/api/requests/${pending.id}/decision`).send({ decision: "REJECTED" });
+  const saved = await prisma.request.findUniqueOrThrow({ where: { id: pending.id } });
+
+  expect.soft(response.status).toBe(400);
+  expect(saved.status).toBe("PENDING");
+  expect(saved).toEqual(pending);
+  expect(await prisma.reviewEvent.count({ where: { requestId: pending.id } })).toBe(0);
+});
+
+it.each([
+  { input: "empty", reason: "" },
+  { input: "whitespace-only", reason: " \t\n" },
+  { input: "non-string", reason: 42 },
+])("F04-REJ-T02 rejects a rejection when the reason is $input", async ({ reason }) => {
+  const pending = await createPending();
+  await reviewer.patch(`/api/requests/${pending.id}/decision`)
+    .send({ decision: "REJECTED", reason })
+    .expect(400, { error: "Provide a reason for rejection." });
+
+  const saved = await prisma.request.findUniqueOrThrow({ where: { id: pending.id } });
+  expect(saved).toEqual(pending);
+  expect(await prisma.reviewEvent.count({ where: { requestId: pending.id } })).toBe(0);
 });

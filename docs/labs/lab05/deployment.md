@@ -1,4 +1,4 @@
-﻿# Lab 5 - Cloud Readiness and Deployment Notes
+# Lab 5 - Cloud Readiness and Deployment Notes
 
 
 
@@ -796,6 +796,10 @@ $JobArgs = @("--project=$Project", "--region=$Region", "--image=$OperationsImage
   --set-secrets="DATABASE_URL=workflow-migration-database-url:${MigrationDbVersion}"
 & $Gcloud run jobs execute workflow-migrate --project=$Project --region=$Region --wait
 ```
+
+For the Sprint 2 rejection-history migration, apply the event-table and sequence
+grants as the migration owner. The exact operations-image command and local
+restricted-role verification are in the [F-04 contract](../../sprints/sprint-2/F-04-rejection-reason.md#runtime-grants-and-local-verification).
 
 Stop until migration status/success and runtime SQL grants are verified. Then use create-only provisioning, which atomically refuses existing emails without changing passwords/roles:
 
