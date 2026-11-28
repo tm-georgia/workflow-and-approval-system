@@ -1,6 +1,6 @@
 # F-02 — Submit a request and view its status
 
-**Local status (12 November 2026):** Existing Requester implementation retained; contract expanded retrospectively to match it. Assignment integration, success feedback, and decision metadata display were added locally. Verification is recorded in [the Sprint 1 report](verification.md). F-02 was merged into sprint-staging through PR #2; final release verification on main remains pending.
+**Implementation status (28 November 2026):** F-02 includes the Requester submission and history-recovery behavior. CHG-001 was implemented and merged into `sprint-staging` through PR #52 (merge commit `5328f22`). The implementation preserves successful submission feedback when history retrieval fails, displays a separate warning, and allows the Requester to retry history retrieval without resubmitting. Verification results for CHG-001 are recorded in [the Sprint 1 report](verification.md).
 
 ## Linked requirements
 
@@ -28,7 +28,6 @@ The backend must get the Requester's identity from the authenticated session or 
 - Show loading/current-user checks, an empty history, API/connection failures, and a success message after saving. Clear title/description on successful save and reload history.
 - When the retrieved record has a decision, show its status, Reviewer ID, and decision time. The history here is a list of the owner's requests with their single Sprint 1 decision metadata, not an event log.
 - HTML requires both fields and currently limits the title to 120 characters. The API validates non-empty strings but does not impose that maximum. The UI limit is a disclosed implementation difference, not an approved new product rule. Resolve a shared length policy with the teammate before promoting it to an FR/BR.
-
 - A successful request submission must remain acknowledged as successful even if the subsequent history retrieval fails.
 - A history-refresh failure must be displayed separately from the submission success message.
 - Provide a manual action for the Requester to retry history retrieval without submitting the request again.
@@ -96,18 +95,18 @@ The IDs above are feature-local planned IDs. They do not rename the existing bac
 | Shared NFR-01/NFR-02 | API/database integration | Submit signed out; sign in as Reviewer and call Requester operations. | `401`/`403`, no private data. | Existing `TEST-01`, `TEST-04`; F-03 access tests supplement shared middleware coverage. |
 | UI success / AC-01, AC-03 | Component/UI with mocked API | Submit through the form, receive success, reload the Requester's list. | Success feedback, form cleared, `PENDING` record displayed. | Existing `TEST-UI-01` in `client/src/App.test.tsx`; `TEST-F02-UI-SUCCESS` in `RequesterEvidence.test.tsx`. Mocked UI checks do not establish database persistence. |
 
+## Requester History Recovery — CHG-001
 
-### Requester History Recovery — Lab 7
+| Test ID / AC | Level | Preconditions, input, and action | Expected result | Actual verification |
+|---|---|---|---|---|
+| TEST-06 / AC-06, AC-07 | Component/UI | Sign in as a Requester. Submit a valid request. Mock POST as successful and the subsequent history GET as failed. | Submission success remains visible and a separate history-refresh warning appears. | `client/src/App.test.tsx`: TEST-06 |
+| TEST-07 / AC-08, AC-10 | Component/UI | Cause the history refresh after submission to fail, then retry with a successful GET. | History updates, warning disappears, and no second POST occurs. | `client/src/App.test.tsx`: TEST-07 |
+| TEST-08 / AC-11 | Component/UI | Display existing history, then make the submission refresh and subsequent retry fail. | Previously displayed history remains and the warning stays visible. No duplicate submission occurs. | `client/src/App.test.tsx`: TEST-08 |
+| TEST-09 / AC-09 | Component/UI | Trigger history retry while the GET request remains pending. | Loading feedback appears and duplicate retry actions are prevented. | `client/src/App.test.tsx`: TEST-09 |
 
-| Test ID / AC | Level | Preconditions, input, and action | Expected result |
-|---|---|---|---|
-| TEST-06 / AC-06, AC-07 | Component/UI | Sign in as a Requester. Submit a valid request. Mock POST as successful and the subsequent history GET as failed. | The submission success message remains visible. A separate history-refresh warning appears. |
-| TEST-07 / AC-08, AC-10 | Component/UI | Start with a failed history refresh. Retry history retrieval and mock GET as successful with the saved request. | The history updates, the warning disappears, and the original request is not submitted again. |
-| TEST-08 / AC-11 | Component/UI | Display existing request history. Trigger a retry and mock GET as failed. | Previously displayed history remains unchanged and the warning remains visible. |
-| TEST-09 / AC-09 | Component/UI | Trigger history retry and keep the GET request pending. | Loading feedback is visible while the request is pending. Duplicate retry actions are prevented. |
-| TEST-10 / AC-08 | Component/UI | Submit a request successfully, let history retrieval fail, and retry history retrieval. | Only one POST submission occurs. The retry performs history retrieval only. |
+The separately proposed TEST-10 is not implemented as an independent test. Its no-resubmission behavior is covered by TEST-07 and TEST-08, which verify that only one POST occurs while history retrieval is retried.
 
-These tests are planned contract tests. Their actual test results will be recorded after implementation in the Lab 7 verification evidence.
+CHG-001 implementation and verification are complete. TEST-06 through TEST-09 are implemented in `client/src/App.test.tsx`. All 27 client tests passed, and the production build succeeded. Browser verification also confirmed that a successful submission remains acknowledged after history retrieval fails, and that retry updates history without a second POST. Detailed verification evidence is recorded in [verification.md](verification.md).
 
 ## Execution record
 
@@ -117,7 +116,7 @@ See [verification.md](verification.md) for actual commands, counts, runtime, tes
 
 The feature meets its acceptance criteria; planned tests pass; a teammate reviews its pull request; the feature is integrated; and setup or behavior changes are documented.
 
-Apply the shared [Product Definition of Done](product-dod.md). Local tests/builds do not replace teammate review, versioned acceptance, or sprint integration. Those Git actions are deliberately not performed in this task.
+Apply the shared [Product Definition of Done](product-dod.md). For CHG-001, teammate review and integration into `sprint-staging` are recorded in PR #52. Final release verification on `main` remains a separate step.
 
 ## Version history
 
@@ -125,5 +124,6 @@ Apply the shared [Product Definition of Done](product-dod.md). Local tests/build
 |---|---|
 | Original draft | Existing feature/AC-01-AC-05 and TEST-01-TEST-05 retained. Its API was labeled proposed even though implementation existed. No pre-implementation approval or execution date is inferred. |
 | 12 November 2026 local revision | Expanded existing API/data/STS/dependency documentation; recorded actual test mapping and F-03 assignment integration. Preserved teammate implementation and IDs; added missing success feedback and decision metadata display. |
-| Review/integration | Pending teammate review and explicit Git approval. No fabricated historic contract-before-code or release evidence. |
-| 27 November 2026 — Lab 7 contract revision | Proposed change: separated successful Requester submission outcomes from history-refresh outcomes. Added AC-06–AC-11 and TEST-06–TEST-10 for history recovery, manual retry, loading feedback, and preservation of displayed history. Supporting System SDS and traceability updates prepared. Pending teammate review before implementation. |
+| 27 November 2026 — Lab 7 contract revision | Added AC-06–AC-11 and proposed TEST-06–TEST-10 to specify successful submission acknowledgement, separate history-refresh warning, retry behavior, loading feedback, and preservation of displayed history. |
+| Contract review | The CHG-001 contract revision was reviewed before implementation. |
+| 27–28 November 2026 — CHG-001 implementation | Implemented requester history recovery in the client, added TEST-06–TEST-09, and updated the System SDS. PR #52 was approved and merged into `sprint-staging` on 28 November 2026 (merge commit `5328f22`). Verification results are recorded in `verification.md`. |

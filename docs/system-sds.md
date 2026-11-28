@@ -12,7 +12,7 @@ The Workflow and Approval System supports departmental purchase requests. A Requ
 | API/application | Node.js, Express, TypeScript | Session identity, role/ownership/assignment checks, input validation, workflow rules, safe JSON responses. |
 | Persistence | PostgreSQL with Prisma ORM | Users, password hashes, requests, ownership, Reviewer assignment, status, decision identity/time; migrations and seed data. |
 
-The browser sends JSON requests to Express through same-origin /api routes. During local development Vite proxies /api to the backend. Express applies business rules and uses Prisma to access PostgreSQL. Client controls improve usability but are not authorization controls.
+The browser sends JSON requests to Express through same-origin `/api` routes. During local development Vite proxies `/api` to the backend. Express applies business rules and uses Prisma to access PostgreSQL. Client controls improve usability but are not authorization controls.
 
 ## 3. Current and planned data design
 
@@ -34,13 +34,13 @@ F-04 adds decision reasons and an ordered review-history entity (or equivalent).
 | Screen/state | Behavior |
 |---|---|
 | Sign-in | Email/password form; show/hide password; safe invalid-login message. |
-| Requester workspace | Submit title/description and view only the signed-in Requester's requests and statuses. Show loading, empty, save-success, and safe error states. |
 | Requester workspace | Submit title/description and view only the signed-in Requester's requests and statuses. Show loading, empty, submission-success, and safe error states. A successful submission remains successful if the subsequent history refresh fails. Display a separate history-refresh warning and provide a manual retry action with loading feedback. A successful retry updates the displayed history and clears the warning; a failed retry preserves previously displayed history and keeps the warning visible. Retrying history must not submit another request. |
-| Current-user loading | Client obtains identity from GET /api/auth/me; it never chooses a role or owner ID. |
+| Reviewer workspace | Show only assigned, non-self-owned pending requests; allow approve/reject; show loading, empty, success, error, and retry states; suppress duplicate submissions. |
+| Current-user loading | Client obtains identity from `GET /api/auth/me`; it never chooses a role or owner ID. |
 
 ## 5. API conventions
 
-The API uses JSON and safe error objects such as { "error": "user-safe message" }. Password hashes, tokens, SQL, stack traces, and secrets are not returned.
+The API uses JSON and safe error objects such as `{ "error": "user-safe message" }`. Password hashes, tokens, SQL, stack traces, and secrets are not returned.
 
 | Method/path | Access | Purpose |
 |---|---|---|
@@ -69,9 +69,9 @@ All authorization is enforced by the API and database predicates, not merely by 
 
 ## 7. Authentication and secrets
 
-Passwords are checked using bcryptjs; only hashes are stored. Successful login issues a JWT with a one-hour expiry in the HTTP-only accessToken cookie. SameSite is Lax and Secure is enabled in production. GET /api/auth/me returns the verified account identity. Logout clears the browser cookie; copied tokens remain valid until expiry, a documented limitation of this design.
+Passwords are checked using bcryptjs; only hashes are stored. Successful login issues a JWT with a one-hour expiry in the HTTP-only `accessToken` cookie. SameSite is Lax and Secure is enabled in production. `GET /api/auth/me` returns the verified account identity. Logout clears the browser cookie; copied tokens remain valid until expiry, a documented limitation of this design.
 
-DATABASE_URL and JWT_SECRET are supplied through environment variables. Keep local values in the ignored server/.env and deployment values in a secret manager. Never commit secrets or include them in client code or submitted evidence.
+`DATABASE_URL` and `JWT_SECRET` are supplied through environment variables. Keep local values in the ignored `server/.env` and deployment values in a secret manager. Never commit secrets or include them in client code or submitted evidence.
 
 ## 8. Reproducibility and planned GCP design
 
@@ -80,7 +80,7 @@ The README documents dependency installation, local environment configuration, P
 For Lab 5, the intended design is:
 - Cloud Run for the containerized web/API service, serving the client and API on one origin.
 - Cloud SQL for PostgreSQL with persistent managed storage.
-- Secret Manager for DATABASE_URL and JWT_SECRET.
+- Secret Manager for `DATABASE_URL` and `JWT_SECRET`.
 - Artifact Registry for built container images.
 - Cloud Build for build/test and repeatable deployment steps.
 
@@ -88,4 +88,30 @@ The app reads configuration from its environment and stores durable data in Post
 
 ## 9. Current implementation status
 
-F-01, F-02, and F-03 are implemented and locally verified. The latest report records 55 backend and 19 frontend tests passing, builds/typechecks, and database-backed restart smoke checks. F-04–F-07 are planned future work; their full acceptance criteria and executable tests are created before implementation in their respective sprints.
+F-01, F-02, and F-03 are implemented and integrated into the Sprint 1 workflow.
+
+The earlier Sprint 1 verification report records 55 backend and 19 frontend tests passing, along with builds/typechecks and database-backed restart smoke checks. These results represent the earlier Sprint 1 verification baseline.
+
+### CHG-001 — Requester history recovery
+
+CHG-001 extends F-02 so that a successful request submission remains acknowledged even if the subsequent history retrieval fails. The Requester receives a separate history-refresh warning and can retry retrieving history without submitting the request again.
+
+The implemented behavior includes:
+- Successful submission feedback is preserved when the history GET request fails.
+- A separate warning informs the Requester that history could not be refreshed.
+- A manual retry action retrieves history without creating another request.
+- Loading feedback is displayed while the retry is in progress, and duplicate retry actions are prevented.
+- A successful retry updates the displayed history and clears the warning.
+- A failed retry preserves the previously displayed history and keeps the warning visible.
+- Existing submission validation and POST-failure behavior remain unchanged.
+
+CHG-001 verification results:
+- All 27 client tests passed across 4 test files.
+- The production client build completed successfully.
+- Browser verification confirmed that a successful submission remains acknowledged after history retrieval fails.
+- A subsequent successful retry updated the request history and cleared the warning without sending a second POST request.
+- The implementation was approved and merged into `sprint-staging` through PR #52 on 28 November 2026 (merge commit `5328f22`).
+
+These CHG-001 client test results are separate from the earlier Sprint 1 baseline counts above. They should not be added together as though they were one test run.
+
+F-04–F-07 are planned future work; their full acceptance criteria and executable tests are created before implementation in their respective sprints.
