@@ -1,6 +1,29 @@
-# Part E - Local Implementation and Verification Report
+﻿# Part E - Local Implementation and Verification Report
 
-**Date:** 12 November 2026 (Asia/Bangkok). **Branch:** `feature/F-03-reviewer`. **Base commit:** `4326e6e`, plus the uncommitted working-tree changes listed below. No commit, staging, push, merge, rebase, PR, Issue, or remote update was performed. This is local engineering evidence, not an accepted release.
+## Latest status — 28 November 2026
+
+The original verification sections below record the Sprint 1 implementation and verification history from 12–13 November 2026. Their dates, test counts, working-tree details, and Git status describe those historical checkpoints and have not been rewritten.
+
+CHG-001 — Requester History Recovery — was subsequently implemented, reviewed, and merged into `sprint-staging` through PR #52 on 28 November 2026 (merge commit `5328f22`).
+
+CHG-001 verification was completed separately:
+
+- 27 client tests passed across 4 test files.
+- The production client build completed successfully.
+- Browser verification confirmed that a successful request submission remains acknowledged when the subsequent history GET fails.
+- The UI displayed a separate history-refresh warning.
+- After history retrieval was restored, the Requester successfully retried; the request history updated and the warning disappeared.
+- The retry did not submit another POST request.
+
+These results are a separate verification run from the earlier 55 backend and 19 frontend test results. They must not be combined into a single test count.
+
+The PR confirms integration into `sprint-staging`. Final release verification on `main` remains a separate step.
+
+---
+
+## Original Sprint 1 verification history
+
+**Date:** 12 November 2026 (Asia/Bangkok). **Branch:** `feature/F-03-reviewer`. **Base commit:** `4326e6e`, plus the uncommitted working-tree changes listed below. No commit, staging, push, merge, rebase, PR, Issue, or remote update was performed at that historical checkpoint. This is local engineering evidence, not an accepted release.
 
 **Outcome:** local Sprint 1 implementation, contracts, tests, builds, and documentation are complete for teammate review. **Part E is not yet ready to claim formal submission acceptance:** teammate review, versioned engineering history, and integration/release evidence remain pending. Existing retrospective F-01/F-02 documentation is disclosed; this task does not manufacture a contract-before-code history.
 
@@ -269,7 +292,30 @@ The SHA-256 manifest below identifies local implementation/test/configuration by
 | `server/tsconfig.json` | `2578866835799eb41130382c3469a1462a0438b41a4f216bf2b3aba5e9039075` |
 | `server/vitest.config.ts` | `acdb291cd826eb4e647510ed79314b66c9596111fa944f69b7b7ae8a6b6a7b97` |
 
-
 ## Post-integration status — 13 November 2026
 
-The available Git history now shows F-03 merged into sprint-staging through PR #11 and the Part F verification handoff merged through PR #13. This report's test results describe the recorded local verification run; rerun the required checks on the final release commit. The 13 November SRS, feature inventory, traceability, system design, and sprint plan align decision reasons/history with Sprint 2 F-04 and preserve the Sprint 1 F-03 behavior. A staging-to-main release is not recorded in the inspected local Git history.
+The available Git history at that historical checkpoint showed F-03 merged into `sprint-staging` through PR #11 and the Part F verification handoff merged through PR #13. This report's test results describe the recorded local verification run; rerun the required checks on the final release commit. The 13 November SRS, feature inventory, traceability, system design, and sprint plan align decision reasons/history with Sprint 2 F-04 and preserve the Sprint 1 F-03 behavior. A staging-to-main release was not recorded in the inspected local Git history.
+
+---
+
+## CHG-001 — Requester History Recovery
+
+**Verification date:** 28 November 2026
+
+CHG-001 was implemented, reviewed, and merged into `sprint-staging` through PR #52 (merge commit `5328f22`).
+
+### Verification results
+
+- 27 client tests passed across 4 test files.
+- The production client build completed successfully.
+- Browser verification confirmed that successful request submission remains acknowledged when the subsequent history GET fails.
+- A separate history-refresh warning appeared.
+- After history retrieval was restored, the Requester successfully retried the history request.
+- The request history updated and the warning disappeared.
+- The retry did not submit another POST request.
+
+These results are separate from the historical Sprint 1 results of 55 backend tests and 19 frontend tests. The counts must not be combined.
+
+### Integration status
+
+PR #52 was merged into `sprint-staging`. Final release verification on `main` remains a separate step.
