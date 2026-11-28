@@ -24,13 +24,26 @@ describe("F-02/F-03 Requester integration UI evidence", () => {
     expect(screen.getByLabelText("Description")).toHaveValue("");
   });
 
+  it("shows the owner the rejection reason from the retrieved history", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (path) => path === "/api/auth/me"
+      ? response({ id: 2, email: "requester@example.test", role: "REQUESTER" })
+      : response([{ id: 4, title: "Equipment", description: "New keyboard", status: "REJECTED",
+          createdAt: "2026-11-12T00:00:00Z",
+          history: [{ id: 1, action: "REJECTED", reason: "Exceeds department budget" }] }])));
+    render(<App />);
+    expect(await screen.findByText("Exceeds department budget")).toBeInTheDocument();
+  });
+
   it("TEST-F03-UI-OWNER: displays the retrieved decision and its minimum history metadata", async () => {
     vi.stubGlobal("fetch", vi.fn(async (path) => path === "/api/auth/me"
       ? response({ id: 2, email: "requester@example.test", role: "REQUESTER" })
-      : response([{ id: 4, title: "Equipment", description: "Saved decision", status: "APPROVED", reviewerId: 1, decidedAt: "2026-11-12T01:00:00Z", createdAt: "2026-11-12T00:00:00Z" }])));
+      : response([{ id: 4, title: "Equipment", description: "Saved decision", status: "APPROVED", reviewerId: 1, decidedAt: "2026-11-12T01:00:00Z", createdAt: "2026-11-12T00:00:00Z",
+          history: [{ id: 1, action: "APPROVED", reason: "Approved within the quarterly budget" }] }])));
     render(<App />);
     expect(await screen.findByText("APPROVED")).toBeInTheDocument();
     expect(screen.getByText(/Decision by Reviewer #1 on/)).toBeInTheDocument();
+    expect(screen.getByText("Approved within the quarterly budget")).toBeInTheDocument();
+    expect(screen.getByText(/Approval reason/)).toBeInTheDocument();
   });
 
 

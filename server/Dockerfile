@@ -35,6 +35,7 @@ COPY --from=builder /app/generated ./generated
 COPY package.json package-lock.json prisma7.config.ts tsconfig.json ./
 COPY prisma/schema.prisma ./prisma/schema.prisma
 COPY prisma/migrations ./prisma/migrations
+COPY prisma/grants ./prisma/grants
 COPY prisma/provision-users.ts ./prisma/provision-users.ts
 COPY prisma/rotate-demo-credentials.ts ./prisma/rotate-demo-credentials.ts
 

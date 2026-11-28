@@ -5,7 +5,7 @@ import net from "node:net";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-if (!process.env.WORKFLOW_TEST_RUN_DIR || !process.env.DATABASE_URL?.startsWith("postgresql://workflow_test@127.0.0.1:")) {
+if (!process.env.WORKFLOW_TEST_RUN_DIR || !/^postgresql:\/\/(workflow_test|workflow_runtime)@127\.0\.0\.1:\d+\/postgres$/.test(process.env.DATABASE_URL ?? "")) {
   throw new Error("Run this smoke check only through the isolated test harness.");
 }
 const probe = net.createServer();
@@ -43,6 +43,20 @@ async function login(email, password) {
   assert.ok(cookie, "Authentication cookie is required.");
   return cookie;
 }
+async function writeRequest(cookie, route, method, body, status) {
+  const response = await fetch(base + route, {
+    method, headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  assert.equal(response.status, status, `${method} ${route}`);
+  return response.json();
+}
+async function readOwn(cookie, id) {
+  const response = await fetch(base + "/requests/mine", { headers: { Cookie: cookie } });
+  assert.equal(response.status, 200);
+  const row = (await response.json()).find(item => item.id === id);
+  assert.ok(row);
+  return row;
+}
 try {
   await start();
   const owner = await login("requester@example.test", "RequesterDemo334!");
@@ -61,8 +75,28 @@ try {
   const repeated = await fetch(`${base}/requests/${item.id}/decision`, { method: "PATCH", headers: { Cookie: reviewer, "Content-Type": "application/json" }, body: JSON.stringify({ decision: "REJECTED" }) });
   assert.equal(repeated.status, 409);
   console.log("PASS: built HTTP server login -> submission -> assigned list -> forbidden Requester decision -> approval -> repeated-decision refusal.");
+  const purchase = await writeRequest(owner, "/requests", "POST", { title: "Workshop", description: "Supplies" }, 201);
+  const decisionPath = `/requests/${purchase.id}/decision`;
+  const firstReason = "Please include an itemized cost breakdown in the description";
+  const lastReason = "Please specify the supplier for each item.";
+  await writeRequest(reviewer, decisionPath, "PATCH", { decision: "RETURNED", reason: firstReason }, 200);
+  const revised = { title: "Workshop supplies", description: "Ten folders at 20 each, total 200." };
+  await writeRequest(owner, `/requests/${purchase.id}/resubmit`, "PATCH", revised, 200);
+  await writeRequest(reviewer, decisionPath, "PATCH", { decision: "RETURNED", reason: lastReason }, 200);
+  const beforeRestart = await readOwn(owner, purchase.id);
+  assert.equal(beforeRestart.status, "RETURNED");
+  assert.equal(beforeRestart.title, revised.title);
+  assert.equal(beforeRestart.description, revised.description);
+  assert.deepEqual(beforeRestart.history.map(({ action, reason, actorId }) => [action, reason, actorId]), [
+    ["RETURNED", firstReason, purchase.assignedReviewerId],
+    ["RESUBMITTED", null, purchase.requesterId],
+    ["RETURNED", lastReason, purchase.assignedReviewerId],
+  ]);
   await stop();
   await start();
+  const newSession = await login("requester@example.test", "RequesterDemo334!");
+  assert.deepEqual(await readOwn(newSession, purchase.id), beforeRestart);
+  console.log("PASS F05-T03: corrected request and three ordered events survived a built-server restart and fresh owner login.");
   const retrieved = await fetch(`${base}/requests/mine`, { headers: { Cookie: owner } });
   assert.equal(retrieved.status, 200);
   const persisted = (await retrieved.json()).find((row) => row.id === item.id);

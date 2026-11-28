@@ -16,6 +16,14 @@ enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
+  RETURNED
+}
+
+enum ReviewAction {
+  APPROVED
+  REJECTED
+  RETURNED
+  RESUBMITTED
 }
 
 model User {
@@ -27,6 +35,7 @@ model User {
   submittedRequests Request[] @relation("Requester")
   reviewedRequests  Request[] @relation("Reviewer")
   assignedRequests  Request[] @relation("AssignedReviewer")
+  reviewEvents      ReviewEvent[]
 }
 
 model Request {
@@ -42,6 +51,20 @@ model Request {
   reviewer           User?         @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
   createdAt          DateTime      @default(now())
   decidedAt          DateTime?
+  history            ReviewEvent[]
 
   @@index([assignedReviewerId, status, createdAt, id])
+}
+
+model ReviewEvent {
+  id         Int          @id @default(autoincrement())
+  requestId  Int
+  request    Request      @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  actorId    Int
+  actor      User         @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action     ReviewAction
+  occurredAt DateTime
+  reason     String?
+
+  @@index([requestId, occurredAt, id])
 }

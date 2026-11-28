@@ -19,6 +19,8 @@ export default function ReviewerWorkspace() {
   const [processing, setProcessing] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [reasons, setReasons] = useState<Record<number, string>>({});
+  const [reasonError, setReasonError] = useState<{ id: number; message: string } | null>(null);
   const busy = useRef(false);
   const active = useRef(false);
   const loadGeneration = useRef(0);
@@ -44,8 +46,15 @@ export default function ReviewerWorkspace() {
     return () => { active.current = false; loadGeneration.current++; };
   }, []);
 
-  async function decide(id: number, decision: "APPROVED" | "REJECTED") {
+  async function decide(id: number, decision: "APPROVED" | "REJECTED" | "RETURNED") {
     if (busy.current) return;
+    const reason = reasons[id]?.trim();
+    if (!reason) {
+      const label = decision === "APPROVED" ? "approval" : decision === "RETURNED" ? "return" : "rejection";
+      setReasonError({ id, message: `Provide a reason for ${label}.` });
+      return;
+    }
+    setReasonError(null);
     busy.current = true;
     // A response started before this mutation must not restore old rows, errors,
     // or loading state, even when StrictMode replays the initial effect.
@@ -58,7 +67,7 @@ export default function ReviewerWorkspace() {
       const response = await fetch(`/api/requests/${id}/decision`, {
         method: "PATCH", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision }),
+        body: JSON.stringify({ decision, reason }),
       });
       if (!response.ok) throw new Error(await errorMessage(response, "Could not save the decision."));
       if (!active.current) return;
@@ -66,6 +75,11 @@ export default function ReviewerWorkspace() {
       // decision or report a failed save if the subsequent GET fails.
       setSuccess(`Request #${id} ${decision.toLowerCase()}.`);
       setRequests((items) => items.filter((item) => item.id !== id));
+      setReasons((previous) => {
+        const next = { ...previous };
+        delete next[id];
+        return next;
+      });
       await loadPending();
     } catch (caught) {
       if (active.current) setError(caught instanceof TypeError ? "Could not save the decision." : caught instanceof Error ? caught.message : "Could not save the decision.");
@@ -92,9 +106,28 @@ export default function ReviewerWorkspace() {
               <h3>#{item.id} <span className="request-title">{item.title}</span></h3>
               <p className="request-description">{item.description}</p>
               <p><small>Submitted {new Date(item.createdAt).toLocaleString()}</small></p>
+              <label htmlFor={`reason-${item.id}`}>Reason for approval, rejection, or return of request #{item.id}</label>
+              <textarea
+                id={`reason-${item.id}`}
+                rows={2}
+                required
+                value={reasons[item.id] ?? ""}
+                disabled={processing !== null || loading}
+                aria-invalid={reasonError?.id === item.id}
+                aria-describedby={reasonError?.id === item.id ? `reason-error-${item.id}` : undefined}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setReasons((previous) => ({ ...previous, [item.id]: value }));
+                  if (reasonError?.id === item.id && value.trim()) setReasonError(null);
+                }}
+              />
+              {reasonError?.id === item.id && (
+                <p className="error" role="alert" id={`reason-error-${item.id}`}>{reasonError.message}</p>
+              )}
               <div className="review-actions">
                 <button type="button" aria-label={`Approve request #${item.id}`} disabled={processing !== null || loading} onClick={() => void decide(item.id, "APPROVED")}>Approve</button>
                 <button type="button" className="secondary" aria-label={`Reject request #${item.id}`} disabled={processing !== null || loading} onClick={() => void decide(item.id, "REJECTED")}>Reject</button>
+                <button type="button" className="secondary" aria-label={`Return request #${item.id} for changes`} disabled={processing !== null || loading} onClick={() => void decide(item.id, "RETURNED")}>Return for changes</button>
                 {processing === item.id && <span role="status">Saving decision…</span>}
               </div>
             </li>
