@@ -36,7 +36,7 @@ it("F04-REJ-T04 validates a blank reason, keeps the draft on failure, and submit
   });
   const user = userEvent.setup();
   render(<App />);
-  const field = await screen.findByRole("textbox", { name: "Reason for rejection or return of request #11" });
+  const field = await screen.findByRole("textbox", { name: "Reason for approval, rejection, or return of request #11" });
   const reject = screen.getByRole("button", { name: "Reject request #11" });
   await user.type(field, "   ");
   await user.click(reject);
@@ -59,6 +59,36 @@ it("F04-REJ-T04 validates a blank reason, keeps the draft on failure, and submit
   }));
 });
 
+it("F04-APP-T04 requires and submits a trimmed approval reason", async () => {
+  let saved = false;
+  const fetchMock = mockApi(async (_path, init) => {
+    if (init?.method === "PATCH") {
+      saved = true;
+      return response({ ...pending, status: "APPROVED" });
+    }
+    return response(saved ? [] : [pending]);
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  const field = await screen.findByRole("textbox", { name: "Reason for approval, rejection, or return of request #11" });
+  const approve = screen.getByRole("button", { name: "Approve request #11" });
+
+  await user.type(field, "  ");
+  await user.click(approve);
+  expect(screen.getByRole("alert")).toHaveTextContent("Provide a reason for approval.");
+  expect(field).toHaveAttribute("aria-invalid", "true");
+  expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+
+  const reason = "  Approved within the quarterly budget  ";
+  await user.clear(field);
+  await user.type(field, reason);
+  await user.click(approve);
+  expect(await screen.findByText("Request #11 approved.")).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith("/api/requests/11/decision", expect.objectContaining({
+    method: "PATCH", body: JSON.stringify({ decision: "APPROVED", reason: reason.trim() }),
+  }));
+});
+
 describe("F-03 Reviewer workspace through the application", () => {
   it.each(["APPROVED", "REJECTED"])("TEST-F03-UI-STRICT-01: an obsolete GET cannot restore a request after %s", async (decision) => {
     const obsolete = deferred<Response>();
@@ -75,9 +105,8 @@ describe("F-03 Reviewer workspace through the application", () => {
     render(<StrictMode><ReviewerWorkspace /></StrictMode>);
     await waitFor(() => expect(gets).toBe(2));
     await act(async () => { current.resolve(response([pending])); });
-    if (decision === "REJECTED") {
-      await user.type(await screen.findByRole("textbox", { name: "Reason for rejection or return of request #11" }), "Budget limit exceeded");
-    }
+    await user.type(await screen.findByRole("textbox", { name: "Reason for approval, rejection, or return of request #11" }),
+      decision === "APPROVED" ? "Approved within budget" : "Budget limit exceeded");
     await user.click(await screen.findByRole("button", { name: `${decision === "APPROVED" ? "Approve" : "Reject"} request #11` }));
     expect(await screen.findByText("No pending requests assigned to you.")).toBeInTheDocument();
     await act(async () => { obsolete.resolve(response([pending])); });
@@ -97,6 +126,7 @@ describe("F-03 Reviewer workspace through the application", () => {
     });
     const user = userEvent.setup();
     render(<StrictMode><ReviewerWorkspace /></StrictMode>);
+    await user.type(await screen.findByRole("textbox", { name: "Reason for approval, rejection, or return of request #11" }), "Approved within budget");
     await user.click(await screen.findByRole("button", { name: "Approve request #11" }));
     expect(await screen.findByText("No pending requests assigned to you.")).toBeInTheDocument();
     await act(async () => { obsolete.resolve(response({ error: "Obsolete failure" }, 500)); });
@@ -145,13 +175,15 @@ describe("F-03 Reviewer workspace through the application", () => {
     });
     const user = userEvent.setup();
     render(<App />);
-    if (decision === "REJECTED") {
-      await user.type(await screen.findByRole("textbox", { name: "Reason for rejection or return of request #11" }), "Budget limit exceeded");
-    }
+    await user.type(await screen.findByRole("textbox", { name: "Reason for approval, rejection, or return of request #11" }),
+      decision === "APPROVED" ? "Approved within budget" : "Budget limit exceeded");
     await user.click(await screen.findByRole("button", { name: `${decision === "APPROVED" ? "Approve" : "Reject"} request #11` }));
     expect(await screen.findByText(`Request #11 ${decision.toLowerCase()}.`)).toBeInTheDocument();
     expect(await screen.findByText("No pending requests assigned to you.")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith("/api/requests/11/decision", expect.objectContaining({ method: "PATCH", credentials: "include", body: JSON.stringify(decision === "REJECTED" ? { decision, reason: "Budget limit exceeded" } : { decision }) }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/requests/11/decision", expect.objectContaining({
+      method: "PATCH", credentials: "include",
+      body: JSON.stringify({ decision, reason: decision === "APPROVED" ? "Approved within budget" : "Budget limit exceeded" }),
+    }));
     expect(screen.queryByText("Travel request")).not.toBeInTheDocument();
   });
 
@@ -178,6 +210,7 @@ describe("F-03 Reviewer workspace through the application", () => {
     mockApi(async (_path, init) => init?.method === "PATCH" ? response({ error: `Decision refused (${status}).` }, status) : response([pending]));
     const user = userEvent.setup();
     render(<App />);
+    await user.type(await screen.findByRole("textbox", { name: "Reason for approval, rejection, or return of request #11" }), "Approved within budget");
     await user.click(await screen.findByRole("button", { name: "Approve request #11" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(`Decision refused (${status}).`);
     expect(screen.getByRole("button", { name: "Approve request #11" })).toBeEnabled();
@@ -193,6 +226,7 @@ describe("F-03 Reviewer workspace through the application", () => {
     });
     const user = userEvent.setup();
     render(<App />);
+    await user.type(await screen.findByRole("textbox", { name: "Reason for approval, rejection, or return of request #11" }), "Approved within budget");
     await user.dblClick(await screen.findByRole("button", { name: "Approve request #11" }));
     expect(screen.getByRole("button", { name: "Reject request #11" })).toBeDisabled();
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
@@ -209,6 +243,7 @@ describe("F-03 Reviewer workspace through the application", () => {
     });
     const user = userEvent.setup();
     render(<App />);
+    await user.type(await screen.findByRole("textbox", { name: "Reason for approval, rejection, or return of request #11" }), "Approved within budget");
     await user.click(await screen.findByRole("button", { name: "Approve request #11" }));
     expect(await screen.findByText("Request #11 approved.")).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not load pending requests.");

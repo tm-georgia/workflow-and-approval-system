@@ -20,6 +20,7 @@ enum RequestStatus {
 }
 
 enum ReviewAction {
+  APPROVED
   REJECTED
   RETURNED
   RESUBMITTED

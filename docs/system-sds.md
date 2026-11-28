@@ -16,18 +16,19 @@ The browser sends JSON requests to Express through same-origin `/api` routes. Du
 
 ## 3. Current and planned data design
 
-### Current Sprint 1 entities
+### Persistent entities
 
 | Entity | Important fields | Relationships and constraints |
 |---|---|---|
 | User | id, email, passwordHash, role, createdAt | Unique email; role is REQUESTER or REVIEWER; password is a bcrypt hash. |
 | Request | id, title, description, status, requesterId, assignedReviewerId, reviewerId, createdAt, decidedAt | Required Requester owner; optional assigned Reviewer and deciding Reviewer; initial status PENDING; assignment is server controlled. |
+| ReviewEvent | id, requestId, actorId, action, occurredAt, reason | Retains ordered approval, rejection, return, and resubmission events; decision reasons are nonblank, while owner resubmission events have no reason. |
 
-A Requester's owner relationship is separate from the assigned Reviewer and the Reviewer who decides. Existing request records are not automatically assigned by the F-03 migration. The current decision record stores final status, deciding Reviewer, and time. The only valid Sprint 1 transitions are PENDING to APPROVED or REJECTED.
+A Requester's owner relationship is separate from the assigned Reviewer and the Reviewer who decides. Existing request records are not automatically assigned by the F-03 migration. Final decision status, deciding Reviewer, and time remain on the request; F-04/F-05 events retain the reasoned decision history. A request can move from PENDING to APPROVED, REJECTED, or RETURNED; its owner can resubmit a RETURNED request to PENDING.
 
-### Planned Sprint 2 extension
+### Sprint 2 decision history
 
-F-04 adds decision reasons and an ordered review-history entity (or equivalent). F-05 uses retained events for return/resubmission. Contracts must specify event fields, constraints, visibility, and migrations before implementation. Sprint 1 does not currently store a reason or multi-event history.
+F-04 requires a trimmed, nonblank reason for approval and rejection and saves each decision with its ordered ReviewEvent in the same transaction. F-05 uses retained events for return/resubmission. The owner's `GET /api/requests/mine` response includes events ordered by occurrence time and event ID. Reviewer queue and decision responses do not include history; a separate Reviewer history-read permission remains undecided. Older Sprint 1 decisions remain readable without synthesized events.
 
 ## 4. UI and navigation
 
@@ -35,7 +36,7 @@ F-04 adds decision reasons and an ordered review-history entity (or equivalent).
 |---|---|
 | Sign-in | Email/password form; show/hide password; safe invalid-login message. |
 | Requester workspace | Submit title/description and view only the signed-in Requester's requests and statuses. Show loading, empty, submission-success, and safe error states. A successful submission remains successful if the subsequent history refresh fails. Display a separate history-refresh warning and provide a manual retry action with loading feedback. A successful retry updates the displayed history and clears the warning; a failed retry preserves previously displayed history and keeps the warning visible. Retrying history must not submit another request. |
-| Reviewer workspace | Show only assigned, non-self-owned pending requests; allow approve/reject; show loading, empty, success, error, and retry states; suppress duplicate submissions. |
+| Reviewer workspace | Show only assigned, non-self-owned pending requests; require a reason for approve/reject/return; show loading, empty, success, error, and retry states; suppress duplicate submissions. |
 | Current-user loading | Client obtains identity from `GET /api/auth/me`; it never chooses a role or owner ID. |
 
 ## 5. API conventions
@@ -48,9 +49,9 @@ The API uses JSON and safe error objects such as `{ "error": "user-safe message"
 | POST /api/auth/logout | Public | Clear the cookie; return 204. |
 | GET /api/auth/me | Signed in | Return identity from the verified session; otherwise 401. |
 | POST /api/requests | Requester | Create a PENDING request using the session owner and server-designated Reviewer. |
-| GET /api/requests/mine | Requester | Return only the current Requester's requests. |
+| GET /api/requests/mine | Requester | Return only the current Requester's requests with oldest-first history. |
 | GET /api/requests/pending | Assigned Reviewer | Return only assigned, non-self-owned pending requests. |
-| PATCH /api/requests/:id/decision | Assigned Reviewer | Approve/reject a pending request and persist status, Reviewer identity, and time. |
+| PATCH /api/requests/:id/decision | Assigned Reviewer | Approve/reject/return a pending request with a nonblank reason; persist status and event atomically. |
 
 Use 401 for missing/invalid sessions, 403 for forbidden role/ownership/assignment, 400 for invalid input, 404 for missing records, 409 for a request already decided, and a generic 500 for unexpected failures. The F-01/F-02/F-03 contracts define endpoint-specific shapes and boundary behavior.
 
@@ -63,7 +64,8 @@ Use 401 for missing/invalid sessions, 403 for forbidden role/ownership/assignmen
 | Submit a request | Denied | Allowed; owner comes from session | Denied |
 | List own requests | Denied | Own records only | Denied |
 | View pending review queue | Denied | Denied | Assigned, non-self-owned records only |
-| Approve/reject | Denied | Denied | Assigned non-owner; pending-only |
+| Approve/reject/return | Denied | Denied | Assigned non-owner; pending-only; requires a reason |
+| Read request history | Denied | Own requests only | Not currently exposed |
 
 All authorization is enforced by the API and database predicates, not merely by hidden buttons.
 

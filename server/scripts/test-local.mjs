@@ -117,7 +117,7 @@ try {
     env.DATABASE_URL = `postgresql://workflow_runtime@127.0.0.1:${port}/postgres`;
     psql("after-event-grants", "workflow_runtime", privileges);
     run("restricted-review-tests", process.execPath, ["node_modules/vitest/vitest.mjs", "run",
-      "test/reviewer.test.ts", "-t", "F04-REJ-T0[123]|F05-T0[12456]", "--reporter=verbose"]);
+      "test/reviewer.test.ts", "-t", "F04-(REJ-T0[123]|APP-T0[123])|F05-T0[12456]", "--reporter=verbose"]);
     psql("saved-event", "workflow_runtime", 'SELECT current_user, id, "requestId", action, reason FROM public."ReviewEvent" ORDER BY id');
   } else {
     run("tests", process.execPath, ["node_modules/vitest/vitest.mjs", "run", ...args.filter((arg) => arg !== "--smoke")]);

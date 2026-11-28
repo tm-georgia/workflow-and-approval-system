@@ -39,7 +39,7 @@ it("F05-T08 returns, corrects and resubmits through both workspaces while retain
   await user.click(sendBack);
   expect(screen.getByRole("alert")).toHaveTextContent("Provide a reason for return.");
   expect(returnAttempts).toBe(0);
-  const field = screen.getByRole("textbox", { name: "Reason for rejection or return of request #7" });
+  const field = screen.getByRole("textbox", { name: "Reason for approval, rejection, or return of request #7" });
   await user.click(field);
   await user.paste(reason);
   await user.click(sendBack);

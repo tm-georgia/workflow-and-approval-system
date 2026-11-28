@@ -18,7 +18,7 @@ export type RequestItem = {
   createdAt: string;
   reviewerId?: number | null;
   decidedAt?: string | null;
-  history?: { id: number; action: "REJECTED" | "RETURNED" | "RESUBMITTED"; reason: string | null }[];
+  history?: { id: number; action: "APPROVED" | "REJECTED" | "RETURNED" | "RESUBMITTED"; reason: string | null }[];
 };
 
 async function responseError(response: Response): Promise<string> {
@@ -290,7 +290,7 @@ const [loading, setLoading] = useState(true);
                     <small>{new Date(item.createdAt).toLocaleString()}</small>
                     {item.history?.map((event) => (
                       <p key={event.id} className="request-description">
-                        <strong>{event.action === "REJECTED" ? "Rejection reason" : event.action === "RETURNED" ? "Returned for changes" : "Resubmitted"}</strong> {event.reason}
+                        <strong>{event.action === "APPROVED" ? "Approval reason" : event.action === "REJECTED" ? "Rejection reason" : event.action === "RETURNED" ? "Returned for changes" : "Resubmitted"}</strong> {event.reason}
                       </p>
                     ))}
                     {item.status === "RETURNED" && (

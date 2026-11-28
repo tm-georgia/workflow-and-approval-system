@@ -48,9 +48,10 @@ export default function ReviewerWorkspace() {
 
   async function decide(id: number, decision: "APPROVED" | "REJECTED" | "RETURNED") {
     if (busy.current) return;
-    const reason = decision === "APPROVED" ? undefined : reasons[id]?.trim();
-    if (decision !== "APPROVED" && !reason) {
-      setReasonError({ id, message: decision === "RETURNED" ? "Provide a reason for return." : "Provide a reason for rejection." });
+    const reason = reasons[id]?.trim();
+    if (!reason) {
+      const label = decision === "APPROVED" ? "approval" : decision === "RETURNED" ? "return" : "rejection";
+      setReasonError({ id, message: `Provide a reason for ${label}.` });
       return;
     }
     setReasonError(null);
@@ -105,10 +106,11 @@ export default function ReviewerWorkspace() {
               <h3>#{item.id} <span className="request-title">{item.title}</span></h3>
               <p className="request-description">{item.description}</p>
               <p><small>Submitted {new Date(item.createdAt).toLocaleString()}</small></p>
-              <label htmlFor={`reason-${item.id}`}>Reason for rejection or return of request #{item.id}</label>
+              <label htmlFor={`reason-${item.id}`}>Reason for approval, rejection, or return of request #{item.id}</label>
               <textarea
                 id={`reason-${item.id}`}
                 rows={2}
+                required
                 value={reasons[item.id] ?? ""}
                 disabled={processing !== null || loading}
                 aria-invalid={reasonError?.id === item.id}
