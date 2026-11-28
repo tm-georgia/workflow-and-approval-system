@@ -15,9 +15,10 @@ describe("F-03 boundary and authorization rules", () => {
       expect(parseRequestId(id)).toBeNull();
     }
   });
-  it("TEST-F03-UNIT-03: only final Sprint 1 decisions are permitted", () => {
+  it("TEST-F03-UNIT-03: permits approval, rejection and return decisions", () => {
     expect(isDecision("APPROVED")).toBe(true);
     expect(isDecision("REJECTED")).toBe(true);
-    for (const decision of [undefined, null, {}, ["APPROVED"], "approved", "PENDING", "RETURNED", ""]) expect(isDecision(decision)).toBe(false);
+    expect(isDecision("RETURNED")).toBe(true);
+    for (const decision of [undefined, null, {}, ["APPROVED"], "approved", "PENDING", "RESUBMITTED", ""]) expect(isDecision(decision)).toBe(false);
   });
 });

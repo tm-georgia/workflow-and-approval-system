@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import "./App.css";
+import ReturnedRequestForm from "./ReturnedRequestForm";
 import ReviewerWorkspace from "./ReviewerWorkspace";
 import ReleaseBadge from "./ReleaseBadge";
 
@@ -9,14 +10,15 @@ type User = {
   role: "REQUESTER" | "REVIEWER";
 };
 
-type RequestItem = {
+export type RequestItem = {
   id: number;
   title: string;
   description: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "RETURNED";
   createdAt: string;
   reviewerId?: number | null;
   decidedAt?: string | null;
+  history?: { id: number; action: "REJECTED" | "RETURNED" | "RESUBMITTED"; reason: string | null }[];
 };
 
 async function responseError(response: Response): Promise<string> {
@@ -286,6 +288,16 @@ const [loading, setLoading] = useState(true);
                     </div>
                     <p>{item.description}</p>
                     <small>{new Date(item.createdAt).toLocaleString()}</small>
+                    {item.history?.map((event) => (
+                      <p key={event.id} className="request-description">
+                        <strong>{event.action === "REJECTED" ? "Rejection reason" : event.action === "RETURNED" ? "Returned for changes" : "Resubmitted"}</strong> {event.reason}
+                      </p>
+                    ))}
+                    {item.status === "RETURNED" && (
+                      <ReturnedRequestForm request={item} onSaved={(saved) => {
+                        setRequests((items) => items.map((row) => row.id === saved.id ? saved : row));
+                      }} />
+                    )}
                     {item.decidedAt && item.reviewerId != null && (
                       <p><small>Decision by Reviewer #{item.reviewerId} on {new Date(item.decidedAt).toLocaleString()}</small></p>
                     )}

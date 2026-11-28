@@ -25,6 +25,40 @@ function mockApi(handler: (path: string, init?: RequestInit) => Promise<Response
   return fetchMock;
 }
 
+it("F04-REJ-T04 validates a blank reason, keeps the draft on failure, and submits it on retry", async () => {
+  let attempts = 0;
+  const fetchMock = mockApi(async (_path, init) => {
+    if (init?.method === "PATCH") {
+      attempts++;
+      return attempts === 1 ? response({ error: "Could not save the decision." }, 500) : response({ ...pending, status: "REJECTED" });
+    }
+    return response(attempts < 2 ? [pending] : []);
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  const field = await screen.findByRole("textbox", { name: "Reason for rejection or return of request #11" });
+  const reject = screen.getByRole("button", { name: "Reject request #11" });
+  await user.type(field, "   ");
+  await user.click(reject);
+  expect(screen.getByRole("alert")).toHaveTextContent("Provide a reason for rejection.");
+  expect(field).toHaveAttribute("aria-invalid", "true");
+  expect(attempts).toBe(0);
+
+  const draft = "  Workshop exceeds budget  ";
+  await user.clear(field);
+  await user.type(field, draft);
+  await user.click(reject);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not save the decision.");
+  expect(field).toHaveValue(draft);
+  await user.click(reject);
+  expect(await screen.findByText("Request #11 rejected.")).toBeInTheDocument();
+  expect(await screen.findByText("No pending requests assigned to you.")).toBeInTheDocument();
+  expect(attempts).toBe(2);
+  expect(fetchMock).toHaveBeenCalledWith("/api/requests/11/decision", expect.objectContaining({
+    method: "PATCH", body: JSON.stringify({ decision: "REJECTED", reason: draft.trim() }),
+  }));
+});
+
 describe("F-03 Reviewer workspace through the application", () => {
   it.each(["APPROVED", "REJECTED"])("TEST-F03-UI-STRICT-01: an obsolete GET cannot restore a request after %s", async (decision) => {
     const obsolete = deferred<Response>();
@@ -41,6 +75,9 @@ describe("F-03 Reviewer workspace through the application", () => {
     render(<StrictMode><ReviewerWorkspace /></StrictMode>);
     await waitFor(() => expect(gets).toBe(2));
     await act(async () => { current.resolve(response([pending])); });
+    if (decision === "REJECTED") {
+      await user.type(await screen.findByRole("textbox", { name: "Reason for rejection or return of request #11" }), "Budget limit exceeded");
+    }
     await user.click(await screen.findByRole("button", { name: `${decision === "APPROVED" ? "Approve" : "Reject"} request #11` }));
     expect(await screen.findByText("No pending requests assigned to you.")).toBeInTheDocument();
     await act(async () => { obsolete.resolve(response([pending])); });
@@ -108,10 +145,13 @@ describe("F-03 Reviewer workspace through the application", () => {
     });
     const user = userEvent.setup();
     render(<App />);
+    if (decision === "REJECTED") {
+      await user.type(await screen.findByRole("textbox", { name: "Reason for rejection or return of request #11" }), "Budget limit exceeded");
+    }
     await user.click(await screen.findByRole("button", { name: `${decision === "APPROVED" ? "Approve" : "Reject"} request #11` }));
     expect(await screen.findByText(`Request #11 ${decision.toLowerCase()}.`)).toBeInTheDocument();
     expect(await screen.findByText("No pending requests assigned to you.")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith("/api/requests/11/decision", expect.objectContaining({ method: "PATCH", credentials: "include", body: JSON.stringify({ decision }) }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/requests/11/decision", expect.objectContaining({ method: "PATCH", credentials: "include", body: JSON.stringify(decision === "REJECTED" ? { decision, reason: "Budget limit exceeded" } : { decision }) }));
     expect(screen.queryByText("Travel request")).not.toBeInTheDocument();
   });
 
