@@ -10,7 +10,7 @@ Each baseline requirement is assigned to a feature and sprint. Sprint 1 rows ide
 | FR-04, BR-03, BR-05 | F-03 | 1 | F-03 AC-01/10; assigned queue, wrong-role/unassigned Reviewer, and server-assignment tests in `server/test/reviewer.test.ts`. |
 | FR-05, BR-04, BR-06 | F-03 | 1 | F-03 AC-02/03/05–08/11; approval/rejection, wrong-role, self-approval, repeat, invalid, and concurrent-decision tests. |
 | FR-06 | F-03 | 1 | F-03 AC-04; database read-back, Requester retrieval, and built-server restart smoke check. |
-| FR-07, BR-07 | F-04 | 2 | Planned: test that each decision reason is required, saved with its event, ordered, and retrievable only by authorized roles. |
+| FR-07, BR-07 | F-04 | 2 | F04-APP-T01–T04 and F04-REJ-T01–T04 verify required reasons, trimmed transactional events, owner-only ordered history, invalid input, and UI validation; F-05 tests preserve return/resubmission reasons and history. |
 | FR-08, BR-08 | F-05 | 2 | Planned: UI/API/database return → owner edit/resubmit → review journey; test wrong owner, invalid transitions, and preservation of earlier history. |
 | FR-09 | F-06 | 3 | Planned: matching/no-match/invalid filter tests and proof that filters preserve role and ownership boundaries. |
 | FR-10, BR-09 | F-07 | 3 | Planned: compare reports against known persisted decisions, including empty/date-boundary cases and authorization scope. |
@@ -45,6 +45,6 @@ CHG-001 verification recorded:
 
 The 27 client tests are a separate CHG-001 verification run and must not be added to the earlier 55 backend and 19 frontend test counts as though they were one test run.
 
-F-04–F-07 are planned, not implemented. Decision reasons and extended history are deliberately allocated to Sprint 2; this preserves the existing Sprint 1 behavior while covering the Theme 5 requirement in the full product baseline. The selected workflow has one approval stage. If the team or instructor changes these decisions, update the SRS, feature inventory, plan, SDS, and affected contracts together.
+F-04 and F-05 are implemented on the current feature branch; F-06 and F-07 remain planned. F-04 adds approval and rejection reasons to the shared ordered history while preserving the existing one-stage approval workflow. Whether assigned Reviewers need a separate history-read permission remains open; current history is available only through the owning Requester's existing request list. If the team or instructor changes these decisions, update the SRS, feature inventory, plan, SDS, and affected contracts together.
 
 Final release verification on `main` remains a separate step.

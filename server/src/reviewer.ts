@@ -38,8 +38,9 @@ reviewerRouter.patch("/:id/decision", async (request, response): Promise<void> =
       if (existing.status !== "PENDING") return alreadyDecided;
       const rawReason: unknown = request.body.reason;
       const reason = typeof rawReason === "string" ? rawReason.trim() : "";
-      if (decision !== "APPROVED" && !reason) {
-        return { status: 400, error: decision === "RETURNED" ? "Provide a reason for return." : "Provide a reason for rejection." } as const;
+      if (!reason) {
+        const label = decision === "APPROVED" ? "approval" : decision === "RETURNED" ? "return" : "rejection";
+        return { status: 400, error: `Provide a reason for ${label}.` } as const;
       }
 
       // The status, assignment and ownership checks occur in the SQL write, not
@@ -55,11 +56,9 @@ reviewerRouter.patch("/:id/decision", async (request, response): Promise<void> =
         if (!mayReview(user.id, current)) return { status: 403, error: "You may review only assigned requests that you do not own." } as const;
         return alreadyDecided;
       }
-      if (decision !== "APPROVED") {
-        await tx.reviewEvent.create({
-          data: { requestId: id, actorId: user.id, action: decision, occurredAt: decidedAt, reason },
-        });
-      }
+      await tx.reviewEvent.create({
+        data: { requestId: id, actorId: user.id, action: decision, occurredAt: decidedAt, reason },
+      });
       return { status: 200, record: await tx.request.findUniqueOrThrow({ where: { id } }) } as const;
     });
     if (result.status === 200) response.json(result.record);

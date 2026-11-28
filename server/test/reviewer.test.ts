@@ -9,6 +9,7 @@ import { prisma } from "../src/prisma";
 
 const password = "SyntheticF03TestOnly!";
 const rejectionReason = "Budget limit exceeded";
+const approvalReason = "Within the approved quarterly budget";
 const owner = request.agent(app);
 const reviewer = request.agent(app);
 const unrelated = request.agent(app);
@@ -37,7 +38,10 @@ function createPending(assignedReviewerId: number | null = reviewerId, requester
   return prisma.request.create({ data: { title: "Synthetic F03 request", description: "Review integration fixture", requesterId, assignedReviewerId } });
 }
 function decide(agent: typeof reviewer, id: number | string, decision: unknown = "APPROVED", reason?: string) {
-  return agent.patch(`/api/requests/${id}/decision`).send({ decision, reason });
+  return agent.patch(`/api/requests/${id}/decision`).send({
+    decision,
+    reason: reason ?? (decision === "APPROVED" ? approvalReason : undefined),
+  });
 }
 
 describe("F-03 real API/PostgreSQL workflow", () => {
@@ -58,7 +62,7 @@ describe("F-03 real API/PostgreSQL workflow", () => {
   it.each(["APPROVED", "REJECTED"])("TEST-F03-02/03/04: persists %s with session identity and owner retrieval", async (decision) => {
     const pending = await createPending();
     const before = Date.now();
-    const reason = decision === "REJECTED" ? rejectionReason : undefined;
+    const reason = decision === "REJECTED" ? rejectionReason : approvalReason;
     const result = await reviewer.patch(`/api/requests/${pending.id}/decision`).send({ decision, reason, reviewerId: unrelatedId, requesterId: unrelatedId, assignedReviewerId: unrelatedId, decidedAt: "2000-01-01" }).expect(200);
     expect(result.body).toMatchObject({ id: pending.id, status: decision, reviewerId, requesterId: ownerId, assignedReviewerId: reviewerId });
     expect(Date.parse(result.body.decidedAt)).toBeGreaterThanOrEqual(before);
@@ -86,7 +90,7 @@ describe("F-03 real API/PostgreSQL workflow", () => {
 
   it.each(["APPROVED", "REJECTED"])("TEST-F03-06: refuses to replace an existing %s decision", async (first) => {
     const pending = await createPending();
-    const reason = first === "REJECTED" ? rejectionReason : undefined;
+    const reason = first === "REJECTED" ? rejectionReason : approvalReason;
     await decide(reviewer, pending.id, first, reason).expect(200);
     const saved = await prisma.request.findUnique({ where: { id: pending.id } });
     await decide(reviewer, pending.id, first === "APPROVED" ? "REJECTED" : "APPROVED").expect(409);
@@ -122,7 +126,7 @@ describe("F-03 real API/PostgreSQL workflow", () => {
       locked = true;
       await blocker.query('SELECT "id" FROM "Request" WHERE "id" = $1 FOR UPDATE', [pending.id]);
       const lockOwner = (await blocker.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0].pid;
-      resultsPromise = Promise.all([decide(reviewer, pending.id, "APPROVED"), decide(reviewer, pending.id, "REJECTED", rejectionReason)]);
+      resultsPromise = Promise.all([decide(reviewer, pending.id, "APPROVED", approvalReason), decide(reviewer, pending.id, "REJECTED", rejectionReason)]);
       // Observe both actual UPDATE sessions waiting, including indirect tuple-lock
       // waiters. Ordinary reads can see Pending while this row lock is held.
       void resultsPromise.catch(() => {});
@@ -161,9 +165,9 @@ describe("F-03 real API/PostgreSQL workflow", () => {
     expect(saved.decidedAt?.toISOString()).toBe(winner.body.decidedAt);
     const events = await prisma.reviewEvent.findMany({ where: { requestId: pending.id } });
     if (winner.body.status === "REJECTED") {
-      expect(events).toMatchObject([{ actorId: reviewerId, reason: rejectionReason }]);
+      expect(events).toMatchObject([{ actorId: reviewerId, action: "REJECTED", reason: rejectionReason }]);
     } else {
-      expect(events).toEqual([]);
+      expect(events).toMatchObject([{ actorId: reviewerId, action: "APPROVED", reason: approvalReason }]);
     }
   }, 15000);
 
@@ -501,6 +505,72 @@ it("F04-REJ-T02 rejects a rejection without a reason", async () => {
   expect(saved.status).toBe("PENDING");
   expect(saved).toEqual(pending);
   expect(await prisma.reviewEvent.count({ where: { requestId: pending.id } })).toBe(0);
+});
+
+it("F04-APP-T01 rejects an approval without a reason and preserves request history", async () => {
+  const pending = await createPending();
+  const response = await reviewer.patch(`/api/requests/${pending.id}/decision`).send({ decision: "APPROVED" });
+  const saved = await prisma.request.findUniqueOrThrow({ where: { id: pending.id } });
+  const eventCount = await prisma.reviewEvent.count({ where: { requestId: pending.id } });
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({ error: "Provide a reason for approval." });
+  expect(saved).toEqual(pending);
+  expect(eventCount).toBe(0);
+});
+
+it.each([
+  { input: "empty", reason: "" },
+  { input: "whitespace-only", reason: " \t\n" },
+  { input: "non-string", reason: 42 },
+])("F04-APP-T03 rejects an approval when the reason is $input", async ({ reason }) => {
+  const pending = await createPending();
+  await reviewer.patch(`/api/requests/${pending.id}/decision`)
+    .send({ decision: "APPROVED", reason })
+    .expect(400, { error: "Provide a reason for approval." });
+
+  expect(await prisma.request.findUniqueOrThrow({ where: { id: pending.id } })).toEqual(pending);
+  expect(await prisma.reviewEvent.count({ where: { requestId: pending.id } })).toBe(0);
+});
+
+it("F04-APP-T02 saves the trimmed approval reason with its event for the owner in ordered history", async () => {
+  const pending = await createPending();
+  await prisma.reviewEvent.create({
+    data: {
+      requestId: pending.id,
+      actorId: ownerId,
+      action: "RESUBMITTED",
+      occurredAt: new Date(Date.now() - 1000),
+      reason: null,
+    },
+  });
+  const result = await decide(reviewer, pending.id, "APPROVED", `  ${approvalReason}  `).expect(200);
+  const mine = await owner.get("/api/requests/mine").expect(200);
+  const saved = mine.body.find((item: { id: number }) => item.id === pending.id);
+
+  expect(saved).toMatchObject({ status: "APPROVED", reviewerId });
+  expect(saved.history).toMatchObject([
+    { action: "RESUBMITTED", reason: null },
+    {
+      id: expect.any(Number), requestId: pending.id, action: "APPROVED",
+      actorId: reviewerId, occurredAt: result.body.decidedAt, reason: approvalReason,
+    },
+  ]);
+});
+
+it("rolls back an approval if PostgreSQL refuses the event insert", async () => {
+  const pending = await createPending();
+  const reason = "Synthetic approval event failure";
+  await prisma.$executeRaw`ALTER TABLE "ReviewEvent" ADD CONSTRAINT "test_refuse_approval_event"
+    CHECK ("reason" <> 'Synthetic approval event failure') NOT VALID`;
+  try {
+    await decide(reviewer, pending.id, "APPROVED", reason)
+      .expect(500, { error: "Could not save the decision." });
+    expect(await prisma.request.findUniqueOrThrow({ where: { id: pending.id } })).toEqual(pending);
+    expect(await prisma.reviewEvent.count({ where: { requestId: pending.id } })).toBe(0);
+  } finally {
+    await prisma.$executeRaw`ALTER TABLE "ReviewEvent" DROP CONSTRAINT "test_refuse_approval_event"`;
+  }
 });
 
 it.each([
